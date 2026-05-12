@@ -2,6 +2,12 @@
 
 All notable changes to the StreamVault HaP Plugin will be documented here.
 
+## [1.1.1] - 2026-05-12
+
+### Changed
+
+- Hide the plugin APK from Android and Android TV launchers while keeping StreamVault activity configuration available.
+
 ## [1.1.0] - 2026-05-12
 
 ### Added
