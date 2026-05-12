@@ -5,3 +5,8 @@ local.properties
 *.iml
 .idea/
 /app/.cxx
+*.jks
+*.keystore
+*.p12
+*.pfx
+keystore.properties
