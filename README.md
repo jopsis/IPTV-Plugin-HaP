@@ -4,7 +4,7 @@
 	<a href="https://github.com/jopsis/StreamVault-IPTV-Plugin-HaP/releases/latest/download/StreamVault-HaP-Plugin.apk"><img src="https://img.shields.io/badge/Download-StreamVault--HaP--Plugin.apk-2ea44f?style=for-the-badge&logo=android" alt="Download StreamVault HaP Plugin APK" /></a>
 	<a href="https://github.com/jopsis/StreamVault-IPTV-Plugin-HaP/releases/latest"><img src="https://img.shields.io/github/v/release/jopsis/StreamVault-IPTV-Plugin-HaP?display_name=tag&style=for-the-badge&color=0f766e&cacheSeconds=60" alt="Latest StreamVault HaP Plugin release" /></a>
 	<a href="https://github.com/jopsis/StreamVault-IPTV-Plugin-HaP/releases"><img src="https://img.shields.io/github/downloads/jopsis/StreamVault-IPTV-Plugin-HaP/total?style=for-the-badge&color=8b5cf6&cacheSeconds=60" alt="Total Downloads" /></a>
-	<a href="https://github.com/jopsis/StreamVault-IPTV-Plugin-HaP/releases"><img src="https://img.shields.io/badge/Changelog-Releases-2563eb?style=for-the-badge" alt="View changelog" /></a>
+	<a href="docs/Changelog.md"><img src="https://img.shields.io/badge/Changelog-View-2563eb?style=for-the-badge" alt="View changelog" /></a>
 	<a href="https://github.com/jopsis/StreamVault-IPTV-Plugin-HaP/actions/workflows/build-apk.yml"><img src="https://img.shields.io/github/actions/workflow/status/jopsis/StreamVault-IPTV-Plugin-HaP/build-apk.yml?branch=main&style=for-the-badge&label=CI" alt="GitHub Actions status" /></a>
 	<a href="https://ko-fi.com/jopsis"><img src="https://img.shields.io/badge/Support-Ko--fi-ff5f5f?style=for-the-badge&logo=kofi" alt="Support on Ko-fi" /></a>
 </p>
