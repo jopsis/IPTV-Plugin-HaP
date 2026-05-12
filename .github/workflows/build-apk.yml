@@ -45,13 +45,44 @@ jobs:
           echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
           echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
 
-      - name: Verify tag matches versionName
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Resolve release tag
+        id: release
         run: |
-          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            RELEASE_TAG="${{ steps.version.outputs.version_name }}"
+          else
+            RELEASE_TAG="$GITHUB_REF_NAME"
+          fi
+          echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Verify release tag matches versionName
+        run: |
+          TAG_VERSION="${{ steps.release.outputs.tag }}"
+          TAG_VERSION="${TAG_VERSION#v}"
           if [ "$TAG_VERSION" != "${{ steps.version.outputs.version_name }}" ]; then
-            echo "::error::Tag '$GITHUB_REF_NAME' must match app versionName '${{ steps.version.outputs.version_name }}' (optional 'v' prefix is accepted)."
+            echo "::error::Release tag '${{ steps.release.outputs.tag }}' must match app versionName '${{ steps.version.outputs.version_name }}' (optional 'v' prefix is accepted)."
             exit 1
+          fi
+
+      - name: Create version tag for manual release
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          RELEASE_TAG="${{ steps.release.outputs.tag }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            git fetch --force origin "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
+            TAG_COMMIT="$(git rev-list -n 1 "$RELEASE_TAG")"
+            HEAD_COMMIT="$(git rev-parse HEAD)"
+            if [ "$TAG_COMMIT" != "$HEAD_COMMIT" ]; then
+              echo "::error::Tag '$RELEASE_TAG' already exists on another commit. Bump versionName before creating a new release."
+              exit 1
+            fi
+            echo "Tag '$RELEASE_TAG' already exists on this commit."
+          else
+            git tag "$RELEASE_TAG"
+            git push origin "refs/tags/$RELEASE_TAG"
           fi
 
       - name: Validate signing secrets
@@ -94,28 +125,32 @@ jobs:
         id: artifact
         run: |
           mkdir -p dist
-          APK_FILE="dist/StreamVault-HaP-Plugin-${{ steps.version.outputs.version_name }}.apk"
-          cp app/build/outputs/apk/release/app-release.apk "$APK_FILE"
-          echo "apk_file=$APK_FILE" >> "$GITHUB_OUTPUT"
+          VERSIONED_APK_FILE="dist/StreamVault-HaP-Plugin-${{ steps.version.outputs.version_name }}.apk"
+          LATEST_APK_FILE="dist/StreamVault-HaP-Plugin.apk"
+          cp app/build/outputs/apk/release/app-release.apk "$VERSIONED_APK_FILE"
+          cp app/build/outputs/apk/release/app-release.apk "$LATEST_APK_FILE"
+          echo "versioned_apk_file=$VERSIONED_APK_FILE" >> "$GITHUB_OUTPUT"
+          echo "latest_apk_file=$LATEST_APK_FILE" >> "$GITHUB_OUTPUT"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: StreamVault-HaP-Plugin-${{ steps.version.outputs.version_name }}
-          path: ${{ steps.artifact.outputs.apk_file }}
+          path: dist/*.apk
           if-no-files-found: error
 
       - name: Publish GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
-          APK_FILE: ${{ steps.artifact.outputs.apk_file }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          VERSIONED_APK_FILE: ${{ steps.artifact.outputs.versioned_apk_file }}
+          LATEST_APK_FILE: ${{ steps.artifact.outputs.latest_apk_file }}
         run: |
           NOTES="Signed APK for version ${{ steps.version.outputs.version_name }} (versionCode ${{ steps.version.outputs.version_code }})."
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" "$APK_FILE" --clobber
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" "$VERSIONED_APK_FILE" "$LATEST_APK_FILE" --clobber
           else
-            gh release create "$GITHUB_REF_NAME" "$APK_FILE" \
-              --title "$GITHUB_REF_NAME" \
+            gh release create "$RELEASE_TAG" "$VERSIONED_APK_FILE" "$LATEST_APK_FILE" \
+              --title "$RELEASE_TAG" \
               --notes "$NOTES"
           fi
