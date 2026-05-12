@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <uses-feature
+        android:name="android.software.leanback"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.touchscreen"
+        android:required="false" />
+
+    <application
+        android:allowBackup="false"
+        android:icon="@drawable/ic_hap_plugin"
+        android:label="@string/app_name"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme"
+        android:usesCleartextTraffic="true">
+
+        <activity
+            android:name=".HapConfigActivity"
+            android:exported="true"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="com.streamvault.plugin.hap.CONFIGURE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name=".StreamVaultHapPluginService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.streamvault.plugin.API" />
+            </intent-filter>
+            <meta-data
+                android:name="com.streamvault.plugin.MANIFEST_JSON"
+                android:value="{&quot;schemaVersion&quot;:1,&quot;id&quot;:&quot;com.streamvault.plugins.hap&quot;,&quot;name&quot;:&quot;HaP&quot;,&quot;versionName&quot;:&quot;1.1.0&quot;,&quot;versionCode&quot;:2,&quot;description&quot;:&quot;AceServe and HTTPAceProxy companion plugin for StreamVault.&quot;,&quot;providerName&quot;:&quot;HaP AIO&quot;,&quot;configurationMode&quot;:&quot;activity&quot;,&quot;configurationActivityAction&quot;:&quot;com.streamvault.plugin.hap.CONFIGURE&quot;,&quot;capabilities&quot;:[&quot;provider.m3u&quot;,&quot;playback.prepare&quot;,&quot;cast.rewriteUrl&quot;,&quot;configuration.activity&quot;]}" />
+            <meta-data
+                android:name="com.streamvault.plugin.ID"
+                android:value="com.streamvault.plugins.hap" />
+            <meta-data
+                android:name="com.streamvault.plugin.NAME"
+                android:value="HaP" />
+            <meta-data
+                android:name="com.streamvault.plugin.VERSION_NAME"
+                android:value="1.1.0" />
+            <meta-data
+                android:name="com.streamvault.plugin.VERSION_CODE"
+                android:value="2" />
+            <meta-data
+                android:name="com.streamvault.plugin.DESCRIPTION"
+                android:value="AceServe and HTTPAceProxy companion plugin for StreamVault." />
+            <meta-data
+                android:name="com.streamvault.plugin.PROVIDER_NAME"
+                android:value="HaP AIO" />
+            <meta-data
+                android:name="com.streamvault.plugin.CONFIGURATION_MODE"
+                android:value="activity" />
+            <meta-data
+                android:name="com.streamvault.plugin.CONFIGURATION_ACTIVITY_ACTION"
+                android:value="com.streamvault.plugin.hap.CONFIGURE" />
+            <meta-data
+                android:name="com.streamvault.plugin.CAPABILITIES"
+                android:value="provider.m3u,playback.prepare,cast.rewriteUrl,configuration.activity" />
+        </service>
+
+        <service
+            android:name="com.jopsis.httpaceserveproxy.ProxySupervisorService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+    </application>
+</manifest>

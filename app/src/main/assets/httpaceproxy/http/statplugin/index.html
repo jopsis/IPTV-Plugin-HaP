@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plugin Status - HTTPAceProxy</title>
+    <link rel="shortcut icon" href="/stat/img/shesterenka.png" type="image/png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        .header h1 {
+            color: white;
+            font-size: 36px;
+            font-weight: 700;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            margin-bottom: 5px;
+        }
+        .header-links {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .header-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            text-decoration: none;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        .header-link:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+        .header-link svg {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+        }
+        .stats {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+        .stat-box {
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 8px;
+            text-align: center;
+            color: white;
+        }
+        .stat-box .label { font-size: 13px; opacity: 0.9; margin-bottom: 8px; }
+        .stat-box .value { font-size: 32px; font-weight: bold; }
+        .plugin {
+            background: white;
+            margin-bottom: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .plugin-header {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            padding: 20px 25px;
+            display: flex;
+            flex-direction: column;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.3s;
+        }
+        .plugin-header:hover {
+            filter: brightness(1.05);
+        }
+        .plugin-header h2 {
+            font-size: 20px;
+            text-transform: capitalize;
+            font-weight: 600;
+        }
+        .plugin-header .count {
+            background: rgba(255,255,255,0.25);
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .plugin-header .header-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .plugin-header .bulk-btn {
+            padding: 6px 14px;
+            border: 2px solid rgba(255,255,255,0.5);
+            background: rgba(255,255,255,0.15);
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .plugin-header .bulk-btn:hover {
+            background: rgba(255,255,255,0.3);
+            border-color: white;
+        }
+        .plugin-header .bulk-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .plugin-header .bulk-btn.running {
+            animation: pulse 1s infinite;
+        }
+        .collapse-icon {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            margin-right: 10px;
+            transition: transform 0.3s ease;
+            flex-shrink: 0;
+        }
+        .plugin.collapsed .collapse-icon {
+            transform: rotate(-90deg);
+        }
+        .collapse-icon svg {
+            width: 100%;
+            height: 100%;
+            fill: white;
+        }
+        .progress-bar {
+            height: 3px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 10px;
+            display: none;
+        }
+        .progress-bar.active {
+            display: block;
+        }
+        .progress-bar .progress {
+            height: 100%;
+            background: white;
+            transition: width 0.3s;
+            width: 0%;
+        }
+        .channels {
+            padding: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        .plugin.collapsed .channels {
+            max-height: 0;
+            transition: max-height 0.3s ease-in;
+        }
+        .channel {
+            padding: 16px 25px;
+            border-bottom: 1px solid #f0f0f0;
+            display: grid;
+            grid-template-columns: 50px minmax(150px, 1fr) 120px 70px 100px;
+            gap: 12px;
+            align-items: center;
+            transition: all 0.2s;
+        }
+        .channel:hover {
+            background: #f8f9fa;
+        }
+        .channel:last-child { border-bottom: none; }
+        .channel-logo-wrapper {
+            width: 50px;
+            height: 50px;
+            flex-shrink: 0;
+        }
+        .channel-logo {
+            width: 50px;
+            height: 50px;
+            object-fit: contain;
+            border-radius: 6px;
+            background: #1a1a1a;
+            padding: 4px;
+        }
+        .channel-logo-placeholder {
+            width: 50px;
+            height: 50px;
+            background: #1a1a1a;
+            border-radius: 6px;
+        }
+        .channel-info {
+            min-width: 0;
+            overflow: hidden;
+        }
+        .channel-name {
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .channel-id {
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 10px;
+            color: #999;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .status {
+            padding: 6px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .status.available {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.unavailable {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.unknown {
+            background: #e2e3e5;
+            color: #383d41;
+            border: 1px solid #d6d8db;
+        }
+        .status.checking {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .check-btn {
+            padding: 5px 10px;
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 600;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .check-btn:hover {
+            filter: brightness(1.1);
+        }
+        .check-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .peers-btn {
+            padding: 5px 10px;
+            background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 600;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .peers-btn:hover {
+            filter: brightness(1.1);
+        }
+        .peers-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .peers-info {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .peers-badge {
+            padding: 4px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 600;
+            background: #e9ecef;
+            color: #495057;
+            white-space: nowrap;
+        }
+        .peers-badge.has-peers {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+        }
+        .peers-badge.no-peers {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .peers-badge.checking {
+            background: #fff3cd;
+            color: #856404;
+            animation: pulse 1.5s infinite;
+        }
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: white;
+            font-size: 18px;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border: 1px solid #f5c6cb;
+        }
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .refresh-btn, .check-all-btn {
+            background: white;
+            color: #667eea;
+            border: 2px solid white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .refresh-btn:hover, .check-all-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .check-all-btn {
+            background: #28a745;
+            color: white;
+            border-color: #28a745;
+        }
+        .filter-box {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .filter-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: border 0.2s;
+        }
+        .filter-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>HTTPAceProxy</h1>
+            <p style="opacity: 0.9; font-size: 14px; color: white; margin-bottom: 15px;">Plugin Channels Status</p>
+            <div class="header-links">
+                <a href="/stat" target="_blank" class="header-link">
+                    <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+                    Statistics
+                </a>
+                <a href="https://github.com/jopsis/HTTPAceProxy" target="_blank" class="header-link">
+                    <svg viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+                    GitHub
+                </a>
+                <a href="https://hub.docker.com/r/jopsis/httpaceproxy" target="_blank" class="header-link">
+                    <svg viewBox="0 0 24 24"><path d="M13.983 11.078h2.119a.186.186 0 00.186-.185V9.006a.186.186 0 00-.186-.186h-2.119a.185.185 0 00-.185.185v1.888c0 .102.083.185.185.185m-2.954-5.43h2.118a.186.186 0 00.186-.186V3.574a.186.186 0 00-.186-.185h-2.118a.185.185 0 00-.185.185v1.888c0 .102.082.185.185.186m0 2.716h2.118a.187.187 0 00.186-.186V6.29a.186.186 0 00-.186-.185h-2.118a.185.185 0 00-.185.185v1.887c0 .102.082.185.185.186m-2.93 0h2.12a.186.186 0 00.184-.186V6.29a.185.185 0 00-.185-.185H8.1a.185.185 0 00-.185.185v1.887c0 .102.083.185.185.186m-2.964 0h2.119a.186.186 0 00.185-.186V6.29a.185.185 0 00-.185-.185H5.136a.186.186 0 00-.186.185v1.887c0 .102.084.185.186.186m5.893 2.715h2.118a.186.186 0 00.186-.185V9.006a.186.186 0 00-.186-.186h-2.118a.185.185 0 00-.185.185v1.888c0 .102.082.185.185.185m-2.93 0h2.12a.185.185 0 00.184-.185V9.006a.185.185 0 00-.184-.186h-2.12a.185.185 0 00-.184.185v1.888c0 .102.083.185.185.185m-2.964 0h2.119a.185.185 0 00.185-.185V9.006a.185.185 0 00-.185-.186h-2.119a.185.185 0 00-.185.185v1.888c0 .102.083.185.185.185m-2.92 0h2.12a.185.185 0 00.184-.185V9.006a.185.185 0 00-.184-.186h-2.12a.186.186 0 00-.185.185v1.888c0 .102.084.185.185.185M23.763 9.89c-.065-.051-.672-.51-1.954-.51-.338.001-.676.03-1.01.087-.248-1.7-1.653-2.53-1.716-2.566l-.344-.199-.226.327c-.284.438-.49.922-.612 1.43-.23.97-.09 1.882.403 2.661-.595.332-1.55.413-1.744.42H.751a.751.751 0 00-.75.748 11.376 11.376 0 00.692 4.062c.545 1.428 1.355 2.48 2.41 3.124 1.18.723 3.1 1.137 5.275 1.137.983.003 1.963-.086 2.93-.266a12.248 12.248 0 003.823-1.389c.98-.567 1.86-1.288 2.61-2.136 1.252-1.418 1.998-2.997 2.553-4.4h.221c1.372 0 2.215-.549 2.68-1.009.309-.293.55-.65.707-1.046l.098-.288z"/></svg>
+                    Docker Hub
+                </a>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="refresh-btn" onclick="loadPlugins()">Refresh Data</button>
+        </div>
+
+        <div class="filter-box">
+            <input type="text"
+                   class="filter-input"
+                   id="filter-input"
+                   placeholder="🔍 Filter channels by name..."
+                   oninput="filterChannels()">
+        </div>
+
+        <div class="stats">
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="label">Total Plugins</div>
+                    <div class="value" id="total-plugins">-</div>
+                </div>
+                <div class="stat-box">
+                    <div class="label">Total Channels</div>
+                    <div class="value" id="total-channels">-</div>
+                </div>
+                <div class="stat-box">
+                    <div class="label">Cached Results</div>
+                    <div class="value" id="cache-size">-</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="plugins-container">
+            <div class="loading">⏳ Loading plugins...</div>
+        </div>
+    </div>
+
+    <script>
+        let checkingChannels = new Set();
+        let pluginsData = null;
+
+        function loadPlugins() {
+            fetch('/statplugin?action=get_plugins')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        pluginsData = data;
+                        renderPlugins(data);
+                    } else {
+                        showError('Failed to load plugins');
+                    }
+                })
+                .catch(err => {
+                    showError('Error: ' + err.message);
+                });
+        }
+
+        function renderPlugins(data, filterText = '') {
+            // Update stats
+            document.getElementById('total-plugins').textContent = data.total_plugins || 0;
+            document.getElementById('cache-size').textContent = data.cache_size || 0;
+
+            let totalChannels = 0;
+            data.plugins.forEach(p => totalChannels += p.total_channels);
+            document.getElementById('total-channels').textContent = totalChannels;
+
+            // Render plugins
+            const container = document.getElementById('plugins-container');
+            container.innerHTML = '';
+
+            if (!data.plugins || data.plugins.length === 0) {
+                container.innerHTML = '<div class="loading">No plugins with channels found</div>';
+                return;
+            }
+
+            const filter = filterText.toLowerCase();
+
+            data.plugins.forEach(plugin => {
+                // Filter channels
+                let filteredChannels = plugin.channels;
+                if (filter) {
+                    filteredChannels = plugin.channels.filter(ch =>
+                        ch.name.toLowerCase().includes(filter)
+                    );
+                }
+
+                if (filteredChannels.length === 0) return;
+
+                const pluginDiv = document.createElement('div');
+                pluginDiv.className = 'plugin';
+
+                const headerDiv = document.createElement('div');
+                headerDiv.className = 'plugin-header';
+                headerDiv.title = 'Click to collapse/expand';
+                headerDiv.innerHTML = `
+                    <div style="display:flex;justify-content:space-between;align-items:center;width:100%">
+                        <div style="display:flex;align-items:center;">
+                            <span class="collapse-icon">
+                                <svg viewBox="0 0 24 24">
+                                    <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
+                                </svg>
+                            </span>
+                            <h2 style="margin:0;">${plugin.name}</h2>
+                        </div>
+                        <div class="header-actions">
+                            <button class="bulk-btn" onclick="checkAllChannels('${plugin.name}', this)" data-plugin="${plugin.name}">
+                                ✓ Check All
+                            </button>
+                            <button class="bulk-btn" onclick="checkAllPeers('${plugin.name}', this)" data-plugin="${plugin.name}">
+                                👥 Peers All
+                            </button>
+                            <button class="bulk-btn" onclick="checkAndPeersAll('${plugin.name}', this)" data-plugin="${plugin.name}" style="background:rgba(255,255,255,0.3)">
+                                ✓👥 Full Check
+                            </button>
+                            <span class="count">${filteredChannels.length} channels</span>
+                        </div>
+                    </div>
+                    <div class="progress-bar" id="progress-${plugin.name}">
+                        <div class="progress"></div>
+                    </div>
+                `;
+
+                const channelsDiv = document.createElement('div');
+                channelsDiv.className = 'channels';
+
+                filteredChannels.forEach(channel => {
+                    const channelDiv = document.createElement('div');
+                    channelDiv.className = 'channel';
+                    channelDiv.dataset.contentId = channel.content_id;
+
+                    const logoHtml = channel.logo
+                        ? `<div class="channel-logo-wrapper"><img src="${channel.logo}" class="channel-logo" onerror="this.outerHTML='<div class=channel-logo-placeholder></div>'"></div>`
+                        : '<div class="channel-logo-wrapper"><div class="channel-logo-placeholder"></div></div>';
+
+                    const statusClass = channel.status || 'unknown';
+                    const statusText = {
+                        'available': '✓ Available',
+                        'unavailable': '✗ Unavailable',
+                        'unknown': '? Unknown',
+                        'checking': '⟳ Checking...'
+                    }[statusClass] || '? Unknown';
+
+                    // Peers info from cache (if available)
+                    let peersHtml = '<div class="peers-info"><span class="peers-badge">- peers</span></div>';
+                    if (channel.peers !== undefined) {
+                        const totalPeers = (channel.peers || 0) + (channel.http_peers || 0);
+                        const peersClass = totalPeers > 0 ? 'has-peers' : 'no-peers';
+                        peersHtml = `<div class="peers-info"><span class="peers-badge ${peersClass}">${totalPeers} peers</span></div>`;
+                    }
+
+                    const btnId = `check-${plugin.name}-${channel.content_id}`;
+                    const peersBtnId = `peers-${plugin.name}-${channel.content_id}`;
+
+                    channelDiv.innerHTML = `
+                        ${logoHtml}
+                        <div class="channel-info">
+                            <div class="channel-name" title="${channel.name}">${channel.name}</div>
+                            <div class="channel-id" title="${channel.content_id}">${channel.content_id}</div>
+                        </div>
+                        <div class="status ${statusClass}">${statusText}</div>
+                        ${peersHtml}
+                        <div class="btn-group">
+                            <button class="check-btn" id="${btnId}"
+                                    onclick="checkChannel('${plugin.name}', '${escapeHtml(channel.name)}', '${channel.content_id}', this)">
+                                Check
+                            </button>
+                            <button class="peers-btn" id="${peersBtnId}"
+                                    onclick="checkPeers('${channel.content_id}', this)">
+                                Peers
+                            </button>
+                        </div>
+                    `;
+
+                    channelsDiv.appendChild(channelDiv);
+                });
+
+                pluginDiv.appendChild(headerDiv);
+                pluginDiv.appendChild(channelsDiv);
+                container.appendChild(pluginDiv);
+
+                // Set the actual height of channels container for smooth animation
+                // This ensures all channels are visible regardless of how many there are
+                const actualHeight = channelsDiv.scrollHeight;
+
+                // Add collapse/expand functionality
+                const isCollapsed = localStorage.getItem(`plugin-${plugin.name}-collapsed`) === 'true';
+                if (isCollapsed) {
+                    pluginDiv.classList.add('collapsed');
+                    channelsDiv.style.maxHeight = '0';
+                } else {
+                    channelsDiv.style.maxHeight = actualHeight + 'px';
+                }
+
+                headerDiv.addEventListener('click', function(e) {
+                    // Don't toggle if clicking on buttons
+                    if (e.target.closest('.bulk-btn')) {
+                        return;
+                    }
+
+                    const isCurrentlyCollapsed = pluginDiv.classList.contains('collapsed');
+
+                    if (isCurrentlyCollapsed) {
+                        // Expanding
+                        channelsDiv.style.maxHeight = actualHeight + 'px';
+                        pluginDiv.classList.remove('collapsed');
+                    } else {
+                        // Collapsing
+                        channelsDiv.style.maxHeight = '0';
+                        pluginDiv.classList.add('collapsed');
+                    }
+
+                    localStorage.setItem(`plugin-${plugin.name}-collapsed`, !isCurrentlyCollapsed);
+                });
+            });
+        }
+
+        function filterChannels() {
+            const filterText = document.getElementById('filter-input').value;
+            if (pluginsData) {
+                renderPlugins(pluginsData, filterText);
+            }
+        }
+
+        async function checkChannel(pluginName, channelName, contentId, button, retries = 2) {
+            const key = `${pluginName}-${contentId}`;
+
+            if (checkingChannels.has(key)) {
+                return;
+            }
+
+            checkingChannels.add(key);
+            button.disabled = true;
+            button.textContent = 'Checking...';
+
+            const channelDiv = button.closest('.channel');
+            const statusDiv = channelDiv.querySelector('.status');
+            statusDiv.className = 'status checking';
+            statusDiv.textContent = '⟳ Checking...';
+
+            let lastError = null;
+
+            for (let attempt = 0; attempt <= retries; attempt++) {
+                try {
+                    if (attempt > 0) {
+                        button.textContent = `Retry ${attempt}...`;
+                        await new Promise(r => setTimeout(r, 1000)); // Wait 1s before retry
+                    }
+
+                    const response = await fetch(`/statplugin?action=check_channel&plugin=${pluginName}&channel=${encodeURIComponent(channelName)}&content_id=${contentId}`);
+                    const data = await response.json();
+
+                    if (data.status === 'success') {
+                        const available = data.available;
+                        statusDiv.className = 'status ' + (available ? 'available' : 'unavailable');
+                        statusDiv.textContent = available ? '✓ Available' : '✗ Unavailable';
+                        button.textContent = data.cached ? 'Cached' : 'Checked ✓';
+                        checkingChannels.delete(key);
+                        button.disabled = false;
+                        return; // Success, exit
+                    } else {
+                        lastError = data.error || 'Unknown error';
+                    }
+                } catch (err) {
+                    lastError = err.message;
+                }
+            }
+
+            // All retries failed
+            statusDiv.className = 'status unavailable';
+            statusDiv.textContent = '✗ Error';
+            console.error(`Check failed for ${contentId}: ${lastError}`);
+
+            checkingChannels.delete(key);
+            button.disabled = false;
+            button.textContent = 'Retry';
+        }
+
+        async function checkPeers(contentId, button, retries = 2) {
+            if (checkingChannels.has(`peers-${contentId}`)) {
+                return;
+            }
+
+            checkingChannels.add(`peers-${contentId}`);
+            button.disabled = true;
+            button.textContent = '...';
+
+            const channelDiv = button.closest('.channel');
+            const peersInfo = channelDiv.querySelector('.peers-info');
+            peersInfo.innerHTML = '<span class="peers-badge checking">Checking...</span>';
+
+            let lastError = null;
+
+            for (let attempt = 0; attempt <= retries; attempt++) {
+                try {
+                    if (attempt > 0) {
+                        peersInfo.innerHTML = `<span class="peers-badge checking">Retry ${attempt}...</span>`;
+                        await new Promise(r => setTimeout(r, 1000));
+                    }
+
+                    const response = await fetch(`/statplugin?action=check_peers&content_id=${contentId}`);
+                    const data = await response.json();
+
+                    if (data.status === 'success') {
+                        const totalPeers = data.total_peers || 0;
+                        const peers = data.peers || 0;
+                        const httpPeers = data.http_peers || 0;
+                        const peersClass = totalPeers > 0 ? 'has-peers' : 'no-peers';
+
+                        let badgeText = `${totalPeers} peers`;
+                        if (totalPeers > 0 && (peers > 0 || httpPeers > 0)) {
+                            badgeText = `${peers}P + ${httpPeers}H`;
+                        }
+                        peersInfo.innerHTML = `<span class="peers-badge ${peersClass}" title="P2P: ${peers}, HTTP: ${httpPeers}">${badgeText}</span>`;
+
+                        const statusDiv = channelDiv.querySelector('.status');
+                        if (data.available) {
+                            statusDiv.className = 'status available';
+                            statusDiv.textContent = '✓ Available';
+                        } else {
+                            statusDiv.className = 'status unavailable';
+                            statusDiv.textContent = '✗ Unavailable';
+                        }
+
+                        button.textContent = data.cached ? 'Cached' : 'Done';
+                        checkingChannels.delete(`peers-${contentId}`);
+                        button.disabled = false;
+                        setTimeout(() => {
+                            if (button.textContent === 'Done' || button.textContent === 'Cached') {
+                                button.textContent = 'Peers';
+                            }
+                        }, 2000);
+                        return; // Success
+                    } else {
+                        lastError = data.error || 'Unknown error';
+                    }
+                } catch (err) {
+                    lastError = err.message;
+                }
+            }
+
+            // All retries failed
+            peersInfo.innerHTML = '<span class="peers-badge no-peers">Error</span>';
+            console.error(`Peer check failed for ${contentId}: ${lastError}`);
+
+            checkingChannels.delete(`peers-${contentId}`);
+            button.disabled = false;
+            button.textContent = 'Retry';
+        }
+
+        function escapeHtml(text) {
+            return text.replace(/'/g, "\\'");
+        }
+
+        // Bulk check state
+        let bulkCheckRunning = {};
+
+        async function checkAllChannels(pluginName, button) {
+            if (bulkCheckRunning[pluginName]) {
+                return;
+            }
+
+            const plugin = pluginsData?.plugins?.find(p => p.name === pluginName);
+            if (!plugin || !plugin.channels) {
+                alert('Plugin not found');
+                return;
+            }
+
+            bulkCheckRunning[pluginName] = true;
+            button.classList.add('running');
+            button.disabled = true;
+            const originalText = button.textContent;
+
+            const progressBar = document.getElementById(`progress-${pluginName}`);
+            const progressFill = progressBar?.querySelector('.progress');
+            if (progressBar) {
+                progressBar.classList.add('active');
+                progressFill.style.width = '0%';
+            }
+
+            const channels = plugin.channels;
+            const total = channels.length;
+            let completed = 0;
+            let failed = 0;
+
+            for (const channel of channels) {
+                if (!bulkCheckRunning[pluginName]) break;
+
+                button.textContent = `Checking ${completed + 1}/${total}...`;
+
+                let success = false;
+                // Retry up to 2 times
+                for (let attempt = 0; attempt < 3 && !success; attempt++) {
+                    try {
+                        if (attempt > 0) {
+                            await new Promise(r => setTimeout(r, 500));
+                        }
+
+                        const response = await fetch(`/statplugin?action=check_channel&plugin=${pluginName}&content_id=${channel.content_id}`);
+                        const data = await response.json();
+
+                        const channelDiv = document.querySelector(`.channel[data-content-id="${channel.content_id}"]`);
+                        if (channelDiv && data.status === 'success') {
+                            const statusDiv = channelDiv.querySelector('.status');
+                            if (data.available) {
+                                statusDiv.className = 'status available';
+                                statusDiv.textContent = '✓ Available';
+                            } else {
+                                statusDiv.className = 'status unavailable';
+                                statusDiv.textContent = '✗ Unavailable';
+                            }
+                            success = true;
+                        }
+                    } catch (err) {
+                        console.error(`Attempt ${attempt + 1} failed for ${channel.name}:`, err);
+                    }
+                }
+
+                if (!success) failed++;
+                completed++;
+                if (progressFill) {
+                    progressFill.style.width = `${(completed / total) * 100}%`;
+                }
+
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+
+            bulkCheckRunning[pluginName] = false;
+            button.classList.remove('running');
+            button.disabled = false;
+            button.textContent = originalText;
+
+            if (progressBar) {
+                setTimeout(() => {
+                    progressBar.classList.remove('active');
+                    progressFill.style.width = '0%';
+                }, 1000);
+            }
+
+            if (failed > 0) {
+                console.log(`Check completed with ${failed} failures out of ${total}`);
+            }
+        }
+
+        async function checkAllPeers(pluginName, button) {
+            if (bulkCheckRunning[`peers-${pluginName}`]) {
+                return;
+            }
+
+            const plugin = pluginsData?.plugins?.find(p => p.name === pluginName);
+            if (!plugin || !plugin.channels) {
+                alert('Plugin not found');
+                return;
+            }
+
+            const channelCount = plugin.channels.length;
+            const estimatedTime = Math.ceil(channelCount * 10 / 60);
+            if (!confirm(`This will check peers for ${channelCount} channels.\nEstimated time: ${estimatedTime}+ minutes.\n\nContinue?`)) {
+                return;
+            }
+
+            bulkCheckRunning[`peers-${pluginName}`] = true;
+            button.classList.add('running');
+            button.disabled = true;
+            const originalText = button.textContent;
+
+            const progressBar = document.getElementById(`progress-${pluginName}`);
+            const progressFill = progressBar?.querySelector('.progress');
+            if (progressBar) {
+                progressBar.classList.add('active');
+                progressFill.style.width = '0%';
+            }
+
+            const channels = plugin.channels;
+            const total = channels.length;
+            let completed = 0;
+            let withPeers = 0;
+            let failed = 0;
+
+            for (const channel of channels) {
+                if (!bulkCheckRunning[`peers-${pluginName}`]) break;
+
+                button.textContent = `Peers ${completed + 1}/${total} (${withPeers} online)`;
+
+                let success = false;
+                // Retry up to 2 times
+                for (let attempt = 0; attempt < 3 && !success; attempt++) {
+                    try {
+                        if (attempt > 0) {
+                            await new Promise(r => setTimeout(r, 1000));
+                        }
+
+                        const response = await fetch(`/statplugin?action=check_peers&content_id=${channel.content_id}&max_wait=10`);
+                        const data = await response.json();
+
+                        const channelDiv = document.querySelector(`.channel[data-content-id="${channel.content_id}"]`);
+                        if (channelDiv && data.status === 'success') {
+                            const totalPeers = data.total_peers || 0;
+                            const peers = data.peers || 0;
+                            const httpPeers = data.http_peers || 0;
+
+                            if (totalPeers > 0) withPeers++;
+
+                            const statusDiv = channelDiv.querySelector('.status');
+                            if (data.available) {
+                                statusDiv.className = 'status available';
+                                statusDiv.textContent = '✓ Available';
+                            } else {
+                                statusDiv.className = 'status unavailable';
+                                statusDiv.textContent = '✗ Unavailable';
+                            }
+
+                            const peersInfo = channelDiv.querySelector('.peers-info');
+                            const peersClass = totalPeers > 0 ? 'has-peers' : 'no-peers';
+                            let badgeText = `${totalPeers} peers`;
+                            if (totalPeers > 0 && (peers > 0 || httpPeers > 0)) {
+                                badgeText = `${peers}P + ${httpPeers}H`;
+                            }
+                            peersInfo.innerHTML = `<span class="peers-badge ${peersClass}" title="P2P: ${peers}, HTTP: ${httpPeers}">${badgeText}</span>`;
+                            success = true;
+                        }
+                    } catch (err) {
+                        console.error(`Attempt ${attempt + 1} failed for peers ${channel.name}:`, err);
+                    }
+                }
+
+                if (!success) failed++;
+                completed++;
+                if (progressFill) {
+                    progressFill.style.width = `${(completed / total) * 100}%`;
+                }
+
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+
+            bulkCheckRunning[`peers-${pluginName}`] = false;
+            button.classList.remove('running');
+            button.disabled = false;
+            button.textContent = originalText;
+
+            if (progressBar) {
+                setTimeout(() => {
+                    progressBar.classList.remove('active');
+                    progressFill.style.width = '0%';
+                }, 1000);
+            }
+
+            alert(`Peer check complete!\n${withPeers} of ${total} channels have active peers.${failed > 0 ? `\n${failed} checks failed.` : ''}`);
+        }
+
+        async function checkAndPeersAll(pluginName, button) {
+            if (bulkCheckRunning[`full-${pluginName}`]) {
+                return;
+            }
+
+            const plugin = pluginsData?.plugins?.find(p => p.name === pluginName);
+            if (!plugin || !plugin.channels) {
+                alert('Plugin not found');
+                return;
+            }
+
+            const channelCount = plugin.channels.length;
+            const estimatedTime = Math.ceil(channelCount * 12 / 60);
+            if (!confirm(`Full check (availability + peers) for ${channelCount} channels.\nEstimated time: ${estimatedTime}+ minutes.\n\nContinue?`)) {
+                return;
+            }
+
+            bulkCheckRunning[`full-${pluginName}`] = true;
+            button.classList.add('running');
+            button.disabled = true;
+            const originalText = button.textContent;
+
+            const progressBar = document.getElementById(`progress-${pluginName}`);
+            const progressFill = progressBar?.querySelector('.progress');
+            if (progressBar) {
+                progressBar.classList.add('active');
+                progressFill.style.width = '0%';
+            }
+
+            const channels = plugin.channels;
+            const total = channels.length;
+            let completed = 0;
+            let available = 0;
+            let withPeers = 0;
+            let failed = 0;
+
+            for (const channel of channels) {
+                if (!bulkCheckRunning[`full-${pluginName}`]) break;
+
+                const channelDiv = document.querySelector(`.channel[data-content-id="${channel.content_id}"]`);
+                const statusDiv = channelDiv?.querySelector('.status');
+                const peersInfo = channelDiv?.querySelector('.peers-info');
+
+                // Phase 1: Check availability
+                button.textContent = `Check ${completed + 1}/${total}...`;
+
+                if (statusDiv) {
+                    statusDiv.className = 'status checking';
+                    statusDiv.textContent = '⟳ Checking...';
+                }
+
+                let isAvailable = false;
+                let checkSuccess = false;
+
+                for (let attempt = 0; attempt < 3 && !checkSuccess; attempt++) {
+                    try {
+                        if (attempt > 0) await new Promise(r => setTimeout(r, 500));
+
+                        const response = await fetch(`/statplugin?action=check_channel&plugin=${pluginName}&content_id=${channel.content_id}`);
+                        const data = await response.json();
+
+                        if (data.status === 'success') {
+                            isAvailable = data.available;
+                            if (statusDiv) {
+                                statusDiv.className = 'status ' + (isAvailable ? 'available' : 'unavailable');
+                                statusDiv.textContent = isAvailable ? '✓ Available' : '✗ Unavailable';
+                            }
+                            if (isAvailable) available++;
+                            checkSuccess = true;
+                        }
+                    } catch (err) {
+                        console.error(`Check attempt ${attempt + 1} failed for ${channel.name}:`, err);
+                    }
+                }
+
+                // Phase 2: Check peers (only if available or check succeeded)
+                if (checkSuccess) {
+                    button.textContent = `Peers ${completed + 1}/${total}...`;
+
+                    if (peersInfo) {
+                        peersInfo.innerHTML = '<span class="peers-badge checking">...</span>';
+                    }
+
+                    let peersSuccess = false;
+                    for (let attempt = 0; attempt < 3 && !peersSuccess; attempt++) {
+                        try {
+                            if (attempt > 0) await new Promise(r => setTimeout(r, 1000));
+
+                            const response = await fetch(`/statplugin?action=check_peers&content_id=${channel.content_id}&max_wait=10`);
+                            const data = await response.json();
+
+                            if (data.status === 'success' && peersInfo) {
+                                const totalPeers = data.total_peers || 0;
+                                const peers = data.peers || 0;
+                                const httpPeers = data.http_peers || 0;
+
+                                if (totalPeers > 0) withPeers++;
+
+                                const peersClass = totalPeers > 0 ? 'has-peers' : 'no-peers';
+                                let badgeText = `${totalPeers} peers`;
+                                if (totalPeers > 0 && (peers > 0 || httpPeers > 0)) {
+                                    badgeText = `${peers}P + ${httpPeers}H`;
+                                }
+                                peersInfo.innerHTML = `<span class="peers-badge ${peersClass}" title="P2P: ${peers}, HTTP: ${httpPeers}">${badgeText}</span>`;
+
+                                // Update status from peer check (more accurate)
+                                if (statusDiv) {
+                                    if (data.available) {
+                                        statusDiv.className = 'status available';
+                                        statusDiv.textContent = '✓ Available';
+                                    } else {
+                                        statusDiv.className = 'status unavailable';
+                                        statusDiv.textContent = '✗ Unavailable';
+                                    }
+                                }
+                                peersSuccess = true;
+                            }
+                        } catch (err) {
+                            console.error(`Peers attempt ${attempt + 1} failed for ${channel.name}:`, err);
+                        }
+                    }
+
+                    if (!peersSuccess && peersInfo) {
+                        peersInfo.innerHTML = '<span class="peers-badge no-peers">Error</span>';
+                    }
+                } else {
+                    failed++;
+                    if (statusDiv) {
+                        statusDiv.className = 'status unavailable';
+                        statusDiv.textContent = '✗ Error';
+                    }
+                    if (peersInfo) {
+                        peersInfo.innerHTML = '<span class="peers-badge no-peers">-</span>';
+                    }
+                }
+
+                completed++;
+                if (progressFill) {
+                    progressFill.style.width = `${(completed / total) * 100}%`;
+                }
+
+                await new Promise(resolve => setTimeout(resolve, 300));
+            }
+
+            bulkCheckRunning[`full-${pluginName}`] = false;
+            button.classList.remove('running');
+            button.disabled = false;
+            button.textContent = originalText;
+
+            if (progressBar) {
+                setTimeout(() => {
+                    progressBar.classList.remove('active');
+                    progressFill.style.width = '0%';
+                }, 1000);
+            }
+
+            alert(`Full check complete!\n\n✓ Available: ${available} of ${total}\n👥 With peers: ${withPeers} of ${total}${failed > 0 ? `\n⚠ Failed: ${failed}` : ''}`);
+        }
+
+        function showError(message) {
+            const container = document.getElementById('plugins-container');
+            container.innerHTML = `<div class="error">${message}</div>`;
+        }
+
+        // Load on page load
+        loadPlugins();
+
+        // Auto-refresh every 5 minutes
+        setInterval(loadPlugins, 5 * 60 * 1000);
+    </script>
+</body>
+</html>
