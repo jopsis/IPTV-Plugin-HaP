@@ -10,3 +10,4 @@ local.properties
 *.p12
 *.pfx
 keystore.properties
+/graphify-out

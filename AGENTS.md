@@ -1,0 +1,117 @@
+# AGENTS.md
+
+## Project Map
+
+This repository builds the StreamVault HaP companion plugin APK. It packages
+AceServe and HTTPAceProxy behind the StreamVault plugin API, exposes a native
+configuration activity, publishes a local `/aio` M3U provider, prepares local
+HaP playback, and rewrites local URLs for Chromecast/LAN playback.
+
+The graphify map for this project is in `graphify-out/`:
+
+- `graphify-out/graph.html` is the interactive graph.
+- `graphify-out/GRAPH_REPORT.md` is the audit report.
+- `graphify-out/graph.json` is the raw graph data.
+
+The highest-signal graph nodes are `HapConfigActivity`, `HapBridge`,
+`PlaylistCatalog`, `StreamVaultHapPluginService`, `ProxySupervisorService`, and
+`AceServeRuntime`. Start there when you need architectural context.
+
+## Main Code Areas
+
+- `app/src/main/java/com/streamvault/plugin/hap/` contains the StreamVault
+  plugin surface: `StreamVaultHapPluginService`, `HapConfigActivity`, and
+  `PluginContract`.
+- `app/src/main/java/com/jopsis/httpaceserveproxy/` contains the HaP runtime
+  facade and Android-side proxy logic. `HapBridge` is the central facade;
+  `ProxySupervisorService` owns foreground startup/shutdown; `AceServeRuntime`
+  prepares and runs the bundled Python/AceServe runtime.
+- `PlaylistCatalog`, `CustomPlaylistCatalog`, and `SourceValidator` own user
+  M3U/custom channel persistence and validation.
+- `ConnectedClientsClient`, `HealthClient`, and `ChannelStatusClient` query the
+  running proxy/status endpoints.
+- `ProxyExposure` owns local vs LAN exposure. The local proxy port is `8888`;
+  server mode switches the native proxy listen host from `127.0.0.1` to
+  `0.0.0.0`.
+- `app/src/main/cpp/` contains the JNI boundary and CMake config. CMake builds
+  `httpaceproxy_core` as a static library and `httpaceproxy_jni` as the shared
+  Android library.
+- `app/src/main/cpp/httpaceproxycpp/` contains the C++ HTTPAceProxy core:
+  Ace client protocol, HTTP server, proxy handlers, plugins, playlist
+  generation, broadcast streaming, JSON, and utilities.
+- `app/src/main/assets/aceserve/` contains the Android AceServe runtime assets
+  and ABI zips for `arm64-v8a` and `armeabi-v7a`.
+- `app/src/main/assets/httpaceproxy/http/` is the bundled HTTPAceProxy web UI.
+  Treat minified third-party files like jQuery, Bootstrap, and Popper as
+  vendored assets.
+- `app/src/main/res/values/` and `app/src/main/res/values-es/` must stay in
+  sync for user-visible strings.
+
+## Build And Verify
+
+Use JDK 17 plus the Android SDK/NDK expected by Gradle:
+
+```sh
+JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" \
+ANDROID_HOME="$HOME/Library/Android/sdk" \
+./gradlew :app:assembleDebug
+```
+
+Useful commands:
+
+```sh
+./gradlew -q :app:printVersionName
+./gradlew -q :app:printVersionCode
+./gradlew :app:assembleDebug
+./gradlew :app:lintDebug
+```
+
+Install and open the debug build on a connected device with:
+
+```sh
+$ANDROID_HOME/platform-tools/adb install -r app/build/outputs/apk/debug/app-debug.apk
+$ANDROID_HOME/platform-tools/adb shell am start \
+  -a com.streamvault.plugin.hap.CONFIGURE \
+  -p com.streamvault.plugin.hap
+```
+
+There are currently no `app/src/test` or `app/src/androidTest` sources. For
+behavioral changes, run at least `:app:assembleDebug` and do a device smoke
+test for the affected flow.
+
+## Change Rules
+
+- Keep version data synchronized across `app/build.gradle.kts`,
+  `AndroidManifest.xml`, `README.md`, and `docs/Changelog.md`.
+- Keep StreamVault metadata aligned with the supported API surface:
+  `provider.m3u`, `playback.prepare`, `cast.rewriteUrl`, and
+  `configuration.activity`.
+- Do not advertise `configuration.schema` unless a complete host-rendered schema
+  is intentionally implemented. The native activity is the source of truth.
+- Keep `HapConfigActivity` exported for
+  `com.streamvault.plugin.hap.CONFIGURE`, but do not add launcher or Leanback
+  launcher intent filters. The plugin should stay hidden from app drawers.
+- Put user-visible text in Android resources and update both English and Spanish
+  resources together.
+- Public builds must not ship hardcoded playlist sources. Sources are
+  user-managed M3U lists plus the generated `Custom` source.
+- Preserve M3U validation semantics: HTTP/HTTPS URL, `#EXTM3U` header, M3U
+  channels, and at least one AceStream-like target.
+- Changes that affect Cast/LAN playback should go through `ProxyExposure` and
+  `HapBridge`; enabling server mode should restart the proxy if it is running.
+- Changes that affect runtime startup must respect `ProxySupervisorService`'s
+  lifecycle, foreground service notification, `ServiceState`, and readiness
+  checks for AceServe and HTTPAceProxy.
+- Native changes should keep C++20, the Android compile definition
+  `HTTPACEPROXYCPP_ANDROID=1`, and the JNI library link option
+  `-Wl,-z,max-page-size=16384`.
+- Do not casually edit bundled ABI zips, `libacepython.so`, or vendored
+  minified web libraries. Treat them as binary/vendor inputs unless the task is
+  explicitly about refreshing them.
+
+## Release Notes
+
+The GitHub workflow `.github/workflows/build-apk.yml` builds signed release APKs
+on tags or manual dispatch. Release tags must match `versionName` with an
+optional leading `v`. Signed releases require the Android signing secrets used
+by the workflow.
