@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CodingErrorAction;
@@ -20,6 +21,9 @@ final class SourceValidator {
     private static final int CONNECT_TIMEOUT_MS = 8000;
     private static final int READ_TIMEOUT_MS = 30000;
     private static final int MAX_BODY_BYTES = 10 * 1024 * 1024;
+    private static final String BROWSER_ONLY_IPFS_GATEWAY_HOST = "inbrowser.link";
+    private static final String DWEB_GATEWAY_HOST = "dweb.link";
+    private static final String DIRECT_IPFS_GATEWAY_BASE = "https://ipfs.io";
     private static final Pattern BARE_HASH = Pattern.compile("^[A-Fa-f0-9]{40}$");
 
     private SourceValidator() {
@@ -33,16 +37,34 @@ final class SourceValidator {
         if (!isHttpUrl(normalized)) {
             return ValidationResult.error(normalized, context.getString(R.string.error_source_url_http));
         }
+        if (isBrowserOnlyIpfsGateway(normalized)) {
+            return ValidationResult.error(normalized, context.getString(R.string.error_source_not_m3u, label));
+        }
 
         try {
             validateM3u(context, fetch(context, normalized), label);
             return ValidationResult.ok(normalized);
         } catch (Exception e) {
+            if (e instanceof IOException) {
+                ValidationResult fallback = validateFallbackGateway(context, label, normalized);
+                if (fallback.valid) return fallback;
+            }
             String message = e.getMessage();
             return ValidationResult.error(
                     normalized,
                     message == null || message.isEmpty() ? e.toString() : message
             );
+        }
+    }
+
+    private static ValidationResult validateFallbackGateway(Context context, String label, String normalized) {
+        String fallbackUrl = directDwebGatewayUrl(normalized);
+        if (fallbackUrl.isEmpty() || fallbackUrl.equals(normalized)) return ValidationResult.error(normalized, "");
+        try {
+            validateM3u(context, fetch(context, fallbackUrl), label);
+            return ValidationResult.ok(fallbackUrl);
+        } catch (Exception ignored) {
+            return ValidationResult.error(normalized, "");
         }
     }
 
@@ -126,6 +148,57 @@ final class SourceValidator {
         } catch (Exception ignored) {
         }
         return false;
+    }
+
+    private static boolean isBrowserOnlyIpfsGateway(String value) {
+        try {
+            URI uri = new URI(value);
+            String host = uri.getHost();
+            if (host == null || host.trim().isEmpty()) return false;
+            String lowerHost = host.toLowerCase(Locale.ROOT);
+            return BROWSER_ONLY_IPFS_GATEWAY_HOST.equals(lowerHost)
+                    || lowerHost.endsWith("." + BROWSER_ONLY_IPFS_GATEWAY_HOST);
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private static String directDwebGatewayUrl(String value) {
+        try {
+            URI uri = new URI(value);
+            String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase(Locale.ROOT);
+            if (!"http".equals(scheme) && !"https".equals(scheme)) return "";
+
+            String host = uri.getHost();
+            if (host == null || host.trim().isEmpty()) return "";
+
+            String lowerHost = host.toLowerCase(Locale.ROOT);
+            String suffix = "." + DWEB_GATEWAY_HOST;
+            if (!lowerHost.endsWith(suffix)) return "";
+
+            String prefix = host.substring(0, host.length() - suffix.length());
+            String lowerPrefix = prefix.toLowerCase(Locale.ROOT);
+            String namespace;
+            String identifier;
+            if (lowerPrefix.endsWith(".ipns")) {
+                namespace = "ipns";
+                identifier = prefix.substring(0, prefix.length() - ".ipns".length());
+            } else if (lowerPrefix.endsWith(".ipfs")) {
+                namespace = "ipfs";
+                identifier = prefix.substring(0, prefix.length() - ".ipfs".length());
+            } else {
+                return "";
+            }
+
+            identifier = identifier.trim();
+            if (identifier.isEmpty()) return "";
+
+            String rawPath = uri.getRawPath() == null ? "" : uri.getRawPath();
+            String query = uri.getRawQuery() == null || uri.getRawQuery().isEmpty() ? "" : "?" + uri.getRawQuery();
+            return DIRECT_IPFS_GATEWAY_BASE + "/" + namespace + "/" + identifier + rawPath + query;
+        } catch (Exception ignored) {
+            return "";
+        }
     }
 
     private static String fetch(Context context, String url) throws IOException {

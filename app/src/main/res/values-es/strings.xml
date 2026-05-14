@@ -128,7 +128,7 @@
     <string name="error_source_url_http">La URL de la fuente debe usar http o https.</string>
     <string name="error_source_not_found">La fuente ya no existe.</string>
     <string name="error_source_url_duplicate">Ya existe una fuente con esa URL.</string>
-    <string name="error_source_not_m3u">%1$s debe ser una lista M3U que empiece por #EXTM3U.</string>
+    <string name="error_source_not_m3u">La URL de %1$s no devuelve una lista M3U válida. Debe empezar por #EXTM3U.</string>
     <string name="error_source_header_m3u">%1$s debe empezar por #EXTM3U.</string>
     <string name="error_source_empty_m3u">%1$s no contiene canales M3U.</string>
     <string name="error_source_no_acestream">%1$s no contiene canales AceStream válidos.</string>

@@ -2,6 +2,14 @@
 
 All notable changes to the StreamVault HaP Plugin will be documented here.
 
+## [1.1.2] - 2026-05-14
+
+### Changed
+
+- Improved M3U source feedback so validation errors and successful additions are shown next to the form.
+- Added direct gateway fallback for `dweb.link` IPFS/IPNS playlist URLs when Chromecast cannot connect to the gateway host.
+- Made Channel status open by default, prepare HaP before loading lists, and show TV-focusable channel controls.
+
 ## [1.1.1] - 2026-05-12
 
 ### Changed

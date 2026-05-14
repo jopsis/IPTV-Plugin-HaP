@@ -16,7 +16,7 @@ HaP packages AceServe and HTTPAceProxy behind the StreamVault plugin API. It can
 publish a local AIO M3U provider, prepare AceStream playback, rewrite playback
 URLs for Google Cast, and expose its own native configuration screen.
 
-Current plugin version: `1.1.1` (`versionCode` 3).
+Current plugin version: `1.1.2` (`versionCode` 4).
 
 ## Capabilities
 
@@ -52,7 +52,7 @@ The screen contains:
   runtime actions.
 - Sources: collapsible and collapsed by default.
 - Clients: connected HTTPAceProxy clients.
-- Channel status: collapsible and collapsed by default.
+- Channel status: expanded by default with TV-focusable controls.
 - Logs: recent HaP runtime output.
 
 ### Sources
@@ -97,8 +97,8 @@ playlist for HTTPAceProxy.
 
 ### Channel Status
 
-The Channel status section is collapsed by default to keep the TV configure
-screen compact.
+The Channel status section opens expanded so TV remote users can immediately
+load lists, inspect channels, and run peer checks with visible focus states.
 
 Available actions:
 
@@ -179,7 +179,7 @@ $HOME/Library/Android/sdk/platform-tools/adb install -r app/build/outputs/apk/de
 ```
 
 After installation, refresh StreamVault's Plugins screen. The HaP plugin should
-appear as `HaP`, version `1.1.1`, with `configuration.activity`.
+appear as `HaP`, version `1.1.2`, with `configuration.activity`.
 
 The configuration activity can also be opened directly:
 

@@ -81,6 +81,7 @@ public class HapConfigActivity extends Activity {
     private Switch lanSwitch;
     private EditText sourceNameEdit;
     private EditText sourceUrlEdit;
+    private TextView sourceFeedbackView;
     private Button sourceSaveButton;
     private Button sourceCancelButton;
     private EditText customNameEdit;
@@ -327,6 +328,11 @@ public class HapConfigActivity extends Activity {
         sourceCancelButton.setOnClickListener(v -> clearSourceDraft());
         sourceButtons.addView(sourceCancelButton, wrapWrapLeft(8));
 
+        sourceFeedbackView = text("", 13, COLOR_TEXT_SECONDARY, Typeface.NORMAL);
+        sourceFeedbackView.setPadding(0, dp(8), 0, 0);
+        sourceFeedbackView.setVisibility(View.GONE);
+        form.addView(sourceFeedbackView, matchWrap());
+
         sourcesListContainer = new LinearLayout(this);
         sourcesListContainer.setOrientation(LinearLayout.VERTICAL);
         sourcesListContainer.setPadding(0, dp(12), 0, 0);
@@ -409,10 +415,12 @@ public class HapConfigActivity extends Activity {
     }
 
     private View buildChannelStatusPanel() {
-        PanelViews panel = panel(getString(R.string.section_channel_status), true, false);
+        PanelViews panel = panel(getString(R.string.section_channel_status), true, true);
 
         HorizontalScrollView controlsScroll = new HorizontalScrollView(this);
         controlsScroll.setHorizontalScrollBarEnabled(false);
+        controlsScroll.setFocusable(false);
+        controlsScroll.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
         LinearLayout controls = new LinearLayout(this);
         controls.setOrientation(LinearLayout.HORIZONTAL);
         controls.setGravity(Gravity.CENTER_VERTICAL);
@@ -442,6 +450,8 @@ public class HapConfigActivity extends Activity {
 
         HorizontalScrollView pluginScroll = new HorizontalScrollView(this);
         pluginScroll.setHorizontalScrollBarEnabled(false);
+        pluginScroll.setFocusable(false);
+        pluginScroll.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
         pluginScroll.setPadding(0, dp(10), 0, 0);
         pluginTabsContainer = new LinearLayout(this);
         pluginTabsContainer.setOrientation(LinearLayout.HORIZONTAL);
@@ -453,8 +463,11 @@ public class HapConfigActivity extends Activity {
 
         ScrollView channelsScroll = new ScrollView(this);
         channelsScroll.setFillViewport(false);
+        channelsScroll.setFocusable(false);
+        channelsScroll.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
         channelRowsContainer = new LinearLayout(this);
         channelRowsContainer.setOrientation(LinearLayout.VERTICAL);
+        channelRowsContainer.setFocusable(false);
         channelsScroll.addView(channelRowsContainer, new ScrollView.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
@@ -465,6 +478,7 @@ public class HapConfigActivity extends Activity {
         );
         listParams.topMargin = dp(10);
         panel.body.addView(channelsScroll, listParams);
+        renderChannels();
 
         return panel.container;
     }
@@ -687,10 +701,20 @@ public class HapConfigActivity extends Activity {
     private void renderChannelPlugins() {
         pluginTabsContainer.removeAllViews();
         for (HapBridge.PluginChannelsInfo plugin : channelPlugins) {
+            boolean selected = plugin.id.equals(selectedPluginId);
             TextView tab = pill(plugin.label + " (" + plugin.channels.size() + ")",
-                    plugin.id.equals(selectedPluginId) ? COLOR_BRAND_MUTED : COLOR_SURFACE,
-                    plugin.id.equals(selectedPluginId) ? COLOR_BRAND : COLOR_TEXT_SECONDARY);
+                    selected ? COLOR_BRAND_MUTED : COLOR_SURFACE,
+                    selected ? COLOR_BRAND : COLOR_TEXT_SECONDARY);
+            tab.setBackground(focusBackground(
+                    selected ? COLOR_BRAND_MUTED : COLOR_SURFACE,
+                    COLOR_SURFACE_FOCUSED,
+                    dp(999),
+                    dp(1),
+                    selected ? COLOR_BRAND : COLOR_STROKE
+            ));
+            tab.setClickable(true);
             tab.setFocusable(true);
+            tab.setMinHeight(dp(36));
             tab.setOnClickListener(v -> {
                 selectedPluginId = plugin.id;
                 selectedChannelContentId = plugin.channels.isEmpty() ? null : plugin.channels.get(0).contentId;
@@ -719,7 +743,14 @@ public class HapConfigActivity extends Activity {
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
             row.setPadding(dp(10), dp(8), dp(10), dp(8));
-            row.setBackground(roundRect(selected ? COLOR_BRAND_MUTED : COLOR_PANEL_SOFT, dp(10), 0, 0));
+            row.setBackground(focusBackground(
+                    selected ? COLOR_BRAND_MUTED : COLOR_PANEL_SOFT,
+                    COLOR_SURFACE_FOCUSED,
+                    dp(10),
+                    dp(1),
+                    selected ? COLOR_BRAND : COLOR_STROKE
+            ));
+            row.setClickable(true);
             row.setFocusable(true);
             row.setOnClickListener(v -> {
                 selectedChannelContentId = channel.contentId;
@@ -862,6 +893,7 @@ public class HapConfigActivity extends Activity {
         String name = sourceNameEdit.getText().toString();
         String url = sourceUrlEdit.getText().toString();
         showMessage(getString(R.string.message_validating_source));
+        showSourceFeedback(getString(R.string.message_validating_source), COLOR_BRAND);
         setBusy(true);
         executor.execute(() -> {
             try {
@@ -869,16 +901,20 @@ public class HapConfigActivity extends Activity {
                 main(() -> {
                     setBusy(false);
                     showMessage(result.message);
+                    showSourceFeedback(result.message, result.success ? COLOR_SUCCESS : COLOR_ERROR);
                     if (result.success) {
                         clearSourceDraft();
+                        showSourceFeedback(result.message, COLOR_SUCCESS);
                         refreshConfigState();
                     }
                     refreshRuntimeState();
                 });
             } catch (Throwable error) {
+                String message = errorMessage(error);
                 main(() -> {
                     setBusy(false);
-                    showMessage(errorMessage(error));
+                    showMessage(message);
+                    showSourceFeedback(message, COLOR_ERROR);
                     refreshRuntimeState();
                 });
             }
@@ -899,6 +935,7 @@ public class HapConfigActivity extends Activity {
         sourceUrlEdit.setText("");
         sourceSaveButton.setText(getString(R.string.button_add_m3u_source));
         sourceCancelButton.setVisibility(View.GONE);
+        hideSourceFeedback();
     }
 
     private void deleteM3uSource(String sourceId) {
@@ -975,6 +1012,9 @@ public class HapConfigActivity extends Activity {
         renderChannelFeedback(getString(R.string.message_loading_lists));
         executor.execute(() -> {
             try {
+                HapBridge.start(this);
+                boolean ready = HapBridge.waitForProxyReady(90_000);
+                if (!ready) throw new IllegalStateException(getString(R.string.message_aio_timeout));
                 List<HapBridge.PluginChannelsInfo> plugins = HapBridge.channelPlugins(this);
                 main(() -> {
                     channelPlugins = plugins;
@@ -1100,6 +1140,22 @@ public class HapConfigActivity extends Activity {
         }
         messageView.setText(message);
         messageView.setVisibility(View.VISIBLE);
+    }
+
+    private void showSourceFeedback(String message, int color) {
+        if (sourceFeedbackView == null) return;
+        if (message == null || message.trim().isEmpty()) {
+            hideSourceFeedback();
+            return;
+        }
+        sourceFeedbackView.setTextColor(color);
+        sourceFeedbackView.setText(message);
+        sourceFeedbackView.setVisibility(View.VISIBLE);
+    }
+
+    private void hideSourceFeedback() {
+        if (sourceFeedbackView == null) return;
+        sourceFeedbackView.setVisibility(View.GONE);
     }
 
     private void copyToClipboard(String label, String value) {
