@@ -47,6 +47,7 @@ public:
     virtual std::map<std::string, std::string> channels() const { return {}; }
     virtual std::map<std::string, std::string> picons() const { return {}; }
     virtual std::size_t channel_count() const { return channels().size(); }
+    virtual std::vector<std::string> epg_urls() { return {}; }
 };
 
 class PluginRegistry {
@@ -74,13 +75,15 @@ public:
     std::map<std::string, std::string> channels() const override;
     std::map<std::string, std::string> picons() const override;
     std::size_t channel_count() const override;
+    std::vector<std::string> epg_urls() override;
     bool refresh_if_needed();
 
 protected:
     virtual bool refresh() = 0;
     void set_playlist(PlaylistGenerator playlist,
                       std::map<std::string, std::string> channels,
-                      std::map<std::string, std::string> picons);
+                      std::map<std::string, std::string> picons,
+                      std::vector<std::string> epg_urls = {});
     bool rewrite_channel(RequestContext& ctx, const std::string& channel_name, const std::string& ext);
 
     Config config_;
@@ -92,6 +95,7 @@ protected:
     PlaylistGenerator playlist_;
     std::map<std::string, std::string> channels_;
     std::map<std::string, std::string> picons_;
+    std::vector<std::string> epg_urls_;
     std::string etag_;
     std::chrono::steady_clock::time_point playlist_time_;
     std::thread updater_;

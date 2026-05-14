@@ -2,6 +2,13 @@
 
 All notable changes to the StreamVault HaP Plugin will be documented here.
 
+## [1.1.3] - 2026-05-14
+
+### Changed
+
+- Advertise a canonical `x-tvg-url` in generated HaP playlists and serve `/aio/epg.xml` as a local XMLTV endpoint for StreamVault EPG sync.
+- Preserve EPG URLs declared by user M3U sources and route StreamVault EPG requests to the first XMLTV source, falling back to a valid empty XMLTV document when no source EPG is available.
+
 ## [1.1.2] - 2026-05-14
 
 ### Changed

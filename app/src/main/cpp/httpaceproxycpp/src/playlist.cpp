@@ -17,6 +17,11 @@ std::string fill_template(std::string templ, const PlaylistItem& item) {
     return templ;
 }
 
+std::string fill_header_template(std::string templ, const std::map<std::string, std::string>& values) {
+    for (const auto& [k, v] : values) templ = replace_all(templ, "{" + k + "}", v);
+    return templ;
+}
+
 std::string channel_url_from_direct_url(const PlaylistItem& item,
                                         const std::map<std::string, std::string>& params) {
     auto parsed = parse_url(item.url);
@@ -103,7 +108,7 @@ std::string PlaylistGenerator::export_m3u(const std::string& hostport,
         {"ext", query_get(query, "ext", "ts")}
     };
 
-    std::string out = empty_header ? "#EXTM3U\n" : header_;
+    std::string out = empty_header ? "#EXTM3U\n" : fill_header_template(header_, params);
     for (auto item : sorted) out += render_item(std::move(item), params, parse_url);
     return out;
 }
@@ -124,10 +129,13 @@ std::string PlaylistGenerator::default_channel_template() {
 
 std::string PlaylistGenerator::epg_header(const std::string& tvg_url, int tvg_shift, bool quote_url) {
     std::ostringstream out;
-    out << "#EXTM3U url-tvg=";
-    if (quote_url) out << '"';
-    out << tvg_url;
-    if (quote_url) out << '"';
+    out << "#EXTM3U";
+    if (!tvg_url.empty()) {
+        out << " x-tvg-url=";
+        if (quote_url) out << '"';
+        out << tvg_url;
+        if (quote_url) out << '"';
+    }
     out << " tvg-shift=" << tvg_shift << " deinterlace=1 m3uautoload=1 cache=1000\n";
     return out.str();
 }

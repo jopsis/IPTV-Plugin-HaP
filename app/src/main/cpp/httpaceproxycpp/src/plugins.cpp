@@ -4,14 +4,20 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <regex>
 #include <sstream>
 #include <thread>
+#include <vector>
 
 namespace httpace {
 namespace {
 
-constexpr const char* kEpgUrl = "";
+constexpr const char* kAioEpgPath = "/aio/epg.xml";
+constexpr const char* kUserM3uEpgPath = "/userm3u/epg.xml";
+constexpr const char* kCustomEpgPath = "/custom/epg.xml";
 constexpr const char* kBrowserUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
+
+std::string empty_epg_xml();
 
 void send_bytes(ClientConnection& connection, int status, const std::string& content_type, const std::string& body,
                 std::map<std::string, std::string> headers = {}) {
@@ -20,6 +26,16 @@ void send_bytes(ClientConnection& connection, int status, const std::string& con
     headers["Connection"] = "close";
     connection.send_response_headers(status, status_reason(status), headers);
     connection.send_text(body);
+}
+
+void send_epg_redirect(ClientConnection& connection, const std::string& url) {
+    std::map<std::string, std::string> headers = {
+        {"Access-Control-Allow-Origin", "*"},
+        {"Content-Length", "0"},
+        {"Location", url},
+        {"Connection", "close"}
+    };
+    connection.send_response_headers(302, "Found", headers);
 }
 
 std::string host_header(const RequestContext& ctx) {
@@ -76,6 +92,66 @@ std::string unique_channel_key(const std::string& name,
         key = name + " [" + suffix + "-" + std::to_string(n++) + "]";
     }
     return key;
+}
+
+std::string epg_header_for_path(const std::string& path) {
+    return PlaylistGenerator::epg_header("http://{hostport}" + path, 0, true);
+}
+
+bool is_http_url(const std::string& value) {
+    auto parsed = parse_url(value);
+    return (parsed.scheme == "http" || parsed.scheme == "https") && !parsed.host.empty();
+}
+
+std::string strip_surrounding_quotes(std::string value) {
+    value = trim(value);
+    if (value.size() >= 2 && ((value.front() == '"' && value.back() == '"') ||
+                              (value.front() == '\'' && value.back() == '\''))) {
+        return value.substr(1, value.size() - 2);
+    }
+    return value;
+}
+
+void add_unique_url(std::vector<std::string>& urls, const std::string& raw) {
+    auto url = strip_surrounding_quotes(raw);
+    if (!is_http_url(url)) return;
+    if (std::find(urls.begin(), urls.end(), url) == urls.end()) urls.push_back(std::move(url));
+}
+
+void add_header_epg_urls(std::vector<std::string>& urls, const std::string& raw) {
+    for (const auto& part : split(raw, ',', false)) add_unique_url(urls, part);
+}
+
+std::map<std::string, std::string> parse_header_attrs(const std::string& line) {
+    std::map<std::string, std::string> attrs;
+    static const std::regex attr_re(R"REGEX(([A-Za-z0-9_-]+)=("[^"]*"|'[^']*'|[^\s]+))REGEX");
+    for (auto it = std::sregex_iterator(line.begin(), line.end(), attr_re); it != std::sregex_iterator(); ++it) {
+        auto key = lower((*it)[1].str());
+        auto value = strip_surrounding_quotes((*it)[2].str());
+        if (!key.empty()) attrs[key] = value;
+    }
+    return attrs;
+}
+
+std::vector<std::string> extract_epg_urls_from_m3u(const std::string& body) {
+    std::vector<std::string> urls;
+    for (const auto& raw_line : split(body, '\n', true)) {
+        auto line = trim(raw_line);
+        if (line.empty()) continue;
+        if (!starts_with(lower(line), "#extm3u")) break;
+
+        auto attrs = parse_header_attrs(line);
+        for (const auto& key : {"x-tvg-url", "url-tvg", "tvg-url", "url-xml"}) {
+            auto it = attrs.find(key);
+            if (it != attrs.end()) add_header_epg_urls(urls, it->second);
+        }
+        break;
+    }
+    return urls;
+}
+
+std::string empty_epg_xml() {
+    return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<tv generator-info-name=\"HaP\">\n</tv>\n";
 }
 
 } // namespace
@@ -150,6 +226,15 @@ PlaylistPlugin::~PlaylistPlugin() {
 
 bool PlaylistPlugin::handle(RequestContext& ctx) {
     refresh_if_needed();
+    if (ctx.path == "/" + plugin_name_ + "/epg.xml") {
+        auto urls = epg_urls();
+        if (urls.empty()) {
+            send_bytes(ctx.connection, 200, "application/xml; charset=utf-8", empty_epg_xml(), {{"Access-Control-Allow-Origin", "*"}});
+        } else {
+            send_epg_redirect(ctx.connection, urls.front());
+        }
+        return true;
+    }
     if (ctx.path.find("/" + plugin_name_ + "/channel/") == 0) {
         if (!(ends_with(ctx.path, ".ts") || ends_with(ctx.path, ".m3u8"))) {
             send_bytes(ctx.connection, 404, "text/plain", "Invalid path: must end with .ts or .m3u8");
@@ -191,6 +276,12 @@ std::size_t PlaylistPlugin::channel_count() const {
     return channels_.size();
 }
 
+std::vector<std::string> PlaylistPlugin::epg_urls() {
+    refresh_if_needed();
+    std::lock_guard<std::mutex> lock(mutex_);
+    return epg_urls_;
+}
+
 bool PlaylistPlugin::refresh_if_needed() {
     {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -205,11 +296,13 @@ bool PlaylistPlugin::refresh_if_needed() {
 
 void PlaylistPlugin::set_playlist(PlaylistGenerator playlist,
                                   std::map<std::string, std::string> channels,
-                                  std::map<std::string, std::string> picons) {
+                                  std::map<std::string, std::string> picons,
+                                  std::vector<std::string> epg_urls) {
     std::lock_guard<std::mutex> lock(mutex_);
     playlist_ = std::move(playlist);
     channels_ = std::move(channels);
     picons_ = std::move(picons);
+    epg_urls_ = std::move(epg_urls);
     etag_ = playlist_.etag();
     playlist_time_ = std::chrono::steady_clock::now();
 }
@@ -245,17 +338,21 @@ bool PlaylistPlugin::rewrite_channel(RequestContext& ctx, const std::string& cha
 class UserM3uPlugin : public PlaylistPlugin {
 public:
     UserM3uPlugin(Config cfg, HttpClient& client)
-        : PlaylistPlugin(std::move(cfg), client, "userm3u", PlaylistGenerator::epg_header(kEpgUrl, 0, true), 60) {}
+        : PlaylistPlugin(std::move(cfg), client, "userm3u", epg_header_for_path(kUserM3uEpgPath), 60) {}
 protected:
     bool refresh() override {
         PlaylistGenerator playlist(header_);
         std::map<std::string, std::string> channels;
         std::map<std::string, std::string> picons;
+        std::vector<std::string> epg_urls;
         auto sources = parse_user_m3u_sources(config_.user_m3u_sources);
 
         for (const auto& source : sources) {
             try {
                 auto response = http_client_.get(source.url, {{"User-Agent", kBrowserUserAgent}}, 60, true);
+                for (const auto& epg_url : extract_epg_urls_from_m3u(response.body)) {
+                    add_unique_url(epg_urls, epg_url);
+                }
                 for (auto& item : parse_m3u_acestream_items(response.body, channels, picons)) {
                     if (item.group.empty() || item.group == "Unknown") item.group = source.name;
                     playlist.add_item(item);
@@ -265,8 +362,11 @@ protected:
             }
         }
 
-        set_playlist(std::move(playlist), std::move(channels), std::move(picons));
-        log_line("INFO", "[userm3u] playlist generated with " + std::to_string(channel_count()) + " channels from " + std::to_string(sources.size()) + " sources");
+        auto epg_count = epg_urls.size();
+        set_playlist(std::move(playlist), std::move(channels), std::move(picons), std::move(epg_urls));
+        log_line("INFO", "[userm3u] playlist generated with " + std::to_string(channel_count()) +
+                 " channels from " + std::to_string(sources.size()) +
+                 " sources and " + std::to_string(epg_count) + " EPG URLs");
         return true;
     }
 };
@@ -274,7 +374,7 @@ protected:
 class CustomPlugin : public PlaylistPlugin {
 public:
     CustomPlugin(Config cfg, HttpClient& client)
-        : PlaylistPlugin(std::move(cfg), client, "custom", PlaylistGenerator::epg_header(kEpgUrl, 0, true), 0) {}
+        : PlaylistPlugin(std::move(cfg), client, "custom", epg_header_for_path(kCustomEpgPath), 0) {}
 protected:
     bool refresh() override {
         PlaylistGenerator playlist(header_);
@@ -301,7 +401,24 @@ public:
     std::string name() const override { return "aio"; }
     std::vector<std::string> handlers() const override { return {"aio"}; }
     bool handle(RequestContext& ctx) override {
-        PlaylistGenerator generator(PlaylistGenerator::epg_header(kEpgUrl, 0, true));
+        if (ctx.path == kAioEpgPath) {
+            std::set<Plugin*> processed;
+            auto handlers = proxy_.plugins().handlers();
+            for (const auto& [handler, plugin] : handlers) {
+                if (handler == "aio" || handler == "stat" || handler == "statplugin" || handler == "torrenttv_api") continue;
+                if (!config_.aio_includes(handler)) continue;
+                if (!processed.insert(plugin.get()).second) continue;
+                auto urls = plugin->epg_urls();
+                if (!urls.empty()) {
+                    send_epg_redirect(ctx.connection, urls.front());
+                    return true;
+                }
+            }
+            send_bytes(ctx.connection, 200, "application/xml; charset=utf-8", empty_epg_xml(), {{"Access-Control-Allow-Origin", "*"}});
+            return true;
+        }
+
+        PlaylistGenerator generator(epg_header_for_path(kAioEpgPath));
         std::set<Plugin*> processed;
         auto handlers = proxy_.plugins().handlers();
         for (const auto& [handler, plugin] : handlers) {
