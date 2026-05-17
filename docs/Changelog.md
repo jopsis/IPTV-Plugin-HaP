@@ -2,6 +2,12 @@
 
 All notable changes to the StreamVault HaP Plugin will be documented here.
 
+## [1.1.4] - 2026-05-17
+
+### Added
+
+- Transparent support for M3U sources protected by the TestCookie-Nginx JavaScript challenge. Sources that respond with a `slowAES`-based page now have the AES-CBC cookie puzzle solved locally using `javax.crypto` (no new dependencies) and are retried automatically with the resulting `__test` cookie. Solved cookies are cached per hostname for six hours, matching the server-side TTL. Both the runtime M3U downloader (`NativeHttpBridge`) and the source validator (`SourceValidator`) participate in challenge resolution.
+
 ## [1.1.3] - 2026-05-14
 
 ### Changed
