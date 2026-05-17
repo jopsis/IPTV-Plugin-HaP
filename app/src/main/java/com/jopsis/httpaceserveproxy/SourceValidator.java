@@ -202,6 +202,22 @@ final class SourceValidator {
     }
 
     private static String fetch(Context context, String url) throws IOException {
+        String cachedCookie = TestCookieChallengeHandler.getCachedCookie(url);
+        String body = fetchOnce(context, url, cachedCookie);
+
+        if (TestCookieChallengeHandler.isChallenge(body)) {
+            String cookie = TestCookieChallengeHandler.solve(body);
+            if (cookie != null) {
+                TestCookieChallengeHandler.cacheCookie(url, cookie);
+                body = fetchOnce(context, TestCookieChallengeHandler.appendChallengeParam(url), cookie);
+            }
+        }
+
+        if (body.trim().isEmpty()) throw new IOException(context.getString(R.string.error_source_empty_response));
+        return body;
+    }
+
+    private static String fetchOnce(Context context, String url, String testCookie) throws IOException {
         HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
         try {
             connection.setConnectTimeout(CONNECT_TIMEOUT_MS);
@@ -209,14 +225,15 @@ final class SourceValidator {
             connection.setRequestMethod("GET");
             connection.setRequestProperty("User-Agent", "Mozilla/5.0 (HaP Source Validator)");
             connection.setInstanceFollowRedirects(true);
-
+            if (testCookie != null) {
+                connection.setRequestProperty("Cookie", "__test=" + testCookie);
+            }
             int status = connection.getResponseCode();
             InputStream input = status >= 400 ? connection.getErrorStream() : connection.getInputStream();
             String body = readAll(context, input);
             if (status < 200 || status >= 300) {
                 throw new IOException(context.getString(R.string.error_source_http_status, status));
             }
-            if (body.trim().isEmpty()) throw new IOException(context.getString(R.string.error_source_empty_response));
             return body;
         } finally {
             connection.disconnect();

@@ -21,6 +21,27 @@ public final class NativeHttpBridge {
     public static String[] fetch(String url, String[] headerPairs, int timeoutSeconds, boolean followRedirects) {
         int previousTag = TrafficStats.getThreadStatsTag();
         TrafficStats.setThreadStatsTag(TRAFFIC_TAG);
+        try {
+            String cachedCookie = TestCookieChallengeHandler.getCachedCookie(url);
+            String[] result = fetchOnce(url, headerPairs, timeoutSeconds, followRedirects, cachedCookie);
+
+            if ("200".equals(result[0]) && TestCookieChallengeHandler.isChallenge(result[3])) {
+                String cookie = TestCookieChallengeHandler.solve(result[3]);
+                if (cookie != null) {
+                    TestCookieChallengeHandler.cacheCookie(url, cookie);
+                    String retryUrl = TestCookieChallengeHandler.appendChallengeParam(url);
+                    result = fetchOnce(retryUrl, headerPairs, timeoutSeconds, followRedirects, cookie);
+                }
+            }
+
+            return result;
+        } finally {
+            restoreThreadStatsTag(previousTag);
+        }
+    }
+
+    private static String[] fetchOnce(String url, String[] headerPairs, int timeoutSeconds,
+                                      boolean followRedirects, String testCookie) {
         HttpURLConnection connection = null;
         try {
             connection = (HttpURLConnection) new URL(url).openConnection();
@@ -34,21 +55,23 @@ public final class NativeHttpBridge {
                     connection.setRequestProperty(headerPairs[i], headerPairs[i + 1]);
                 }
             }
+            if (testCookie != null) {
+                connection.setRequestProperty("Cookie", "__test=" + testCookie);
+            }
 
             int status = connection.getResponseCode();
             InputStream stream = status >= 400 ? connection.getErrorStream() : connection.getInputStream();
             String body = stream == null ? "" : new String(readAll(stream, 32 * 1024 * 1024), StandardCharsets.UTF_8);
-            return new String[] {
+            return new String[]{
                     String.valueOf(status),
                     connection.getURL().toString(),
                     flattenHeaders(connection.getHeaderFields()),
                     body
             };
         } catch (Exception e) {
-            return new String[] {"0", url, "", e.toString()};
+            return new String[]{"0", url, "", e.toString()};
         } finally {
             if (connection != null) connection.disconnect();
-            restoreThreadStatsTag(previousTag);
         }
     }
 
