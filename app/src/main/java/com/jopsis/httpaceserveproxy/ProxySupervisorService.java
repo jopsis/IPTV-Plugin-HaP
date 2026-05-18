@@ -204,8 +204,8 @@ public class ProxySupervisorService extends Service {
     private boolean waitForAceServe() {
         long deadline = System.currentTimeMillis() + 90000;
         while (System.currentTimeMillis() < deadline) {
-            if (HealthClient.waitForHttp("http://127.0.0.1:" + ACE_HTTP_PORT, 250)
-                    || HealthClient.waitForTcp("127.0.0.1", ACE_API_PORT, 250)) {
+            if (HealthClient.waitForTcp("127.0.0.1", ACE_HTTP_PORT, 250)
+                    && HealthClient.waitForTcp("127.0.0.1", ACE_API_PORT, 250)) {
                 return true;
             }
             if (!aceServe.isRunning()) {

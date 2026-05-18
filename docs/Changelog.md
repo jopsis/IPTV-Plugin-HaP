@@ -2,6 +2,12 @@
 
 All notable changes to the StreamVault HaP Plugin will be documented here.
 
+## [1.1.5] - 2026-05-18
+
+### Fixed
+
+- Fixed a race condition on first start where the HTTP proxy could fail to open because AceServe's API port (62062) was not yet ready when the HTTP port (6878) responded first. The supervisor now requires both ports to be accepting connections before starting the proxy.
+
 ## [1.1.4] - 2026-05-17
 
 ### Added
