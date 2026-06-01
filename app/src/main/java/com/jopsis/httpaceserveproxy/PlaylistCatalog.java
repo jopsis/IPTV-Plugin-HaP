@@ -86,8 +86,8 @@ final class PlaylistCatalog {
         if (USER_M3U_PLUGIN_ID.equals(pluginId)) {
             return new Source(
                     USER_M3U_PLUGIN_ID,
-                    "M3U lists",
-                    "User M3U AceStream lists",
+                    "M3U/API lists",
+                    "User M3U lists and AceStream API endpoints",
                     SourceFormat.M3U,
                     "",
                     "",

@@ -380,7 +380,7 @@ public class StreamVaultHapPluginService extends Service {
                 sourceFields.put(new JSONObject()
                         .put("key", sourceValueKey(source.id))
                         .put("type", "url")
-                        .put("label", source.label + " M3U")
+                        .put("label", source.label + " URL")
                         .put("description", source.description + " (" + source.format + ")")
                         .put("placeholder", source.value));
             }
@@ -475,8 +475,8 @@ public class StreamVaultHapPluginService extends Service {
                 .put("schemaVersion", 1)
                 .put("id", "com.streamvault.plugins.hap")
                 .put("name", "HaP")
-                .put("versionName", "1.2.0")
-                .put("versionCode", 8)
+                .put("versionName", "1.2.1")
+                .put("versionCode", 9)
                 .put("description", getString(R.string.plugin_description))
                 .put("providerName", HapBridge.AIO_PROVIDER_NAME)
                 .put("configurationMode", "activity")

@@ -2,6 +2,12 @@
 
 All notable changes to the StreamVault HaP Plugin will be documented here.
 
+## [1.2.1] - 2026-06-01
+
+### Added
+
+- Added transparent support for `api.acestream.me/all` and `api.acestream.me/search` sources, formatting AceStream API JSON results as M3U channels internally.
+
 ## [1.2.0] - 2026-06-01
 
 ### Added

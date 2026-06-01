@@ -1,4 +1,5 @@
 #include "httpaceproxycpp/playlist.hpp"
+#include "httpaceproxycpp/json.hpp"
 #include "httpaceproxycpp/util.hpp"
 
 #include <algorithm>
@@ -77,6 +78,104 @@ std::string unique_channel_key(const std::string& name,
         key = name + " [" + suffix + "-" + std::to_string(n++) + "]";
     }
     return key;
+}
+
+bool is_infohash(const std::string& value) {
+    static const std::regex hash_re(R"(^[A-Fa-f0-9]{40}$)");
+    return std::regex_match(value, hash_re);
+}
+
+std::string first_string(const Json& value) {
+    if (value.is_string()) return trim(value.as_string());
+    if (!value.is_array()) return "";
+    for (const auto& item : value.as_array()) {
+        auto text = first_string(item);
+        if (!text.empty()) return text;
+    }
+    return "";
+}
+
+std::string api_item_group(const Json& item, const std::string& fallback_group) {
+    auto group = first_string(item["categories"]);
+    if (group.empty()) group = first_string(item["category"]);
+    if (group.empty()) group = first_string(item["country"]);
+    if (group.empty()) group = first_string(item["language"]);
+    return group.empty() ? fallback_group : group;
+}
+
+std::string api_item_icon(const Json& item, const std::string& fallback_icon) {
+    auto icon = trim(item["icon"].as_string());
+    if (icon.empty()) icon = trim(item["logo"].as_string());
+    if (icon.empty()) icon = trim(item["tvg_logo"].as_string());
+    return icon.empty() ? fallback_icon : icon;
+}
+
+void add_acestream_api_value(const Json& value,
+                             std::vector<PlaylistItem>& items,
+                             std::map<std::string, std::string>& channels,
+                             std::map<std::string, std::string>& picons,
+                             const std::string& fallback_name,
+                             const std::string& fallback_group,
+                             const std::string& fallback_icon);
+
+void add_acestream_api_object(const Json& object,
+                              std::vector<PlaylistItem>& items,
+                              std::map<std::string, std::string>& channels,
+                              std::map<std::string, std::string>& picons,
+                              const std::string& fallback_name,
+                              const std::string& fallback_group,
+                              const std::string& fallback_icon) {
+    if (object.contains("result")) {
+        add_acestream_api_value(object["result"], items, channels, picons, fallback_name, fallback_group, fallback_icon);
+        return;
+    }
+    if (object.contains("results")) {
+        add_acestream_api_value(object["results"], items, channels, picons, fallback_name, fallback_group, fallback_icon);
+        return;
+    }
+    if (object.contains("items")) {
+        auto parent_name = trim(object["name"].as_string(fallback_name));
+        auto parent_group = api_item_group(object, fallback_group);
+        auto parent_icon = api_item_icon(object, fallback_icon);
+        add_acestream_api_value(object["items"], items, channels, picons, parent_name, parent_group, parent_icon);
+        return;
+    }
+
+    auto infohash = trim(object["infohash"].as_string());
+    if (!is_infohash(infohash)) return;
+
+    PlaylistItem item;
+    item.name = trim(object["name"].as_string(fallback_name));
+    if (item.name.empty()) item.name = infohash.substr(0, 12);
+    item.group = api_item_group(object, fallback_group);
+    item.logo = api_item_icon(object, fallback_icon);
+    item.availability = object["availability"].as_number(0.0);
+    item.tvg = item.name;
+    item.tvgid = item.name;
+
+    auto ace_url = "acestream://" + lower(infohash);
+    auto key = unique_channel_key(item.name, ace_url, channels);
+    if (key.empty()) return;
+    item.url = url_encode(key, "");
+    channels[key] = ace_url;
+    picons[key] = item.logo;
+    items.push_back(std::move(item));
+}
+
+void add_acestream_api_value(const Json& value,
+                             std::vector<PlaylistItem>& items,
+                             std::map<std::string, std::string>& channels,
+                             std::map<std::string, std::string>& picons,
+                             const std::string& fallback_name,
+                             const std::string& fallback_group,
+                             const std::string& fallback_icon) {
+    if (value.is_array()) {
+        for (const auto& item : value.as_array()) {
+            add_acestream_api_value(item, items, channels, picons, fallback_name, fallback_group, fallback_icon);
+        }
+    } else if (value.is_object()) {
+        add_acestream_api_object(value, items, channels, picons, fallback_name, fallback_group, fallback_icon);
+    }
 }
 
 } // namespace
@@ -232,6 +331,18 @@ std::vector<PlaylistItem> parse_m3u_acestream_items(const std::string& body,
         picons[key] = item.logo;
         items.push_back(item);
     }
+    return items;
+}
+
+std::vector<PlaylistItem> parse_acestream_api_items(const std::string& body,
+                                                    std::map<std::string, std::string>& channels,
+                                                    std::map<std::string, std::string>& picons,
+                                                    const std::string& fallback_group) {
+    std::vector<PlaylistItem> items;
+    auto root = Json::parse(body);
+    auto group = trim(fallback_group);
+    if (group.empty()) group = "AceStream API";
+    add_acestream_api_value(root, items, channels, picons, "", group, "");
     return items;
 }
 

@@ -52,5 +52,9 @@ std::optional<std::string> extract_acestream_content_url(const std::string& raw_
 std::vector<PlaylistItem> parse_m3u_acestream_items(const std::string& body,
                                                     std::map<std::string, std::string>& channels,
                                                     std::map<std::string, std::string>& picons);
+std::vector<PlaylistItem> parse_acestream_api_items(const std::string& body,
+                                                    std::map<std::string, std::string>& channels,
+                                                    std::map<std::string, std::string>& picons,
+                                                    const std::string& fallback_group);
 
 } // namespace httpace
