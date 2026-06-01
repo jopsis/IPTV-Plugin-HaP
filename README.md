@@ -19,8 +19,6 @@ provider, prepare AceStream playback, rewrite playback URLs for Google Cast, and
 serve M3U/EPG URLs to external players such as TiviMate, OTT, and other IPTV
 clients.
 
-Current app version: `1.2.0` (`versionCode` 8).
-
 ## Capabilities
 
 The plugin exposes the `com.streamvault.plugin.API` bound service and advertises
@@ -59,7 +57,7 @@ The screen contains:
 - AIO and LAN server: copyable local/LAN M3U and EPG URLs.
 - Sources: collapsible and collapsed by default.
 - Clients: connected HTTPAceProxy clients.
-- Channel status: expanded by default with TV-focusable controls.
+- Channel status: collapsible and collapsed by default.
 - Logs: recent HaP runtime output.
 
 ### External Players
@@ -123,8 +121,8 @@ playlist for HTTPAceProxy.
 
 ### Channel Status
 
-The Channel status section opens expanded so TV remote users can immediately
-load lists, inspect channels, and run peer checks with visible focus states.
+The Channel status section starts collapsed. Open it to load lists, inspect
+channels, and run peer checks with visible focus states.
 
 Available actions:
 
