@@ -17,6 +17,7 @@ public final class HapBridge {
     public static final String AIO_PROVIDER_NAME = "HaP AIO";
     public static final String LOCAL_BASE_URL = ProxyExposure.localBaseUrl();
     public static final String LOCAL_AIO_URL = PlaylistCatalog.aioUrl();
+    public static final String LOCAL_AIO_EPG_URL = PlaylistCatalog.aioEpgUrl();
     public static final int PROXY_PORT = ProxyExposure.PROXY_PORT;
 
     private HapBridge() {
@@ -57,6 +58,7 @@ public final class HapBridge {
                 ServiceState.lastError,
                 ServiceState.lastUpdateMillis,
                 ProxyExposure.isServerModeEnabled(context),
+                ProxyExposure.isExternalPlayerServerEnabled(context),
                 endpoints(context),
                 ServiceState.log()
         );
@@ -73,6 +75,31 @@ public final class HapBridge {
     public static void setServerModeEnabled(Context context, boolean enabled) {
         ProxyExposure.setServerModeEnabled(context, enabled);
         restartProxyIfRunning(context);
+    }
+
+    public static boolean isExternalPlayerServerEnabled(Context context) {
+        return ProxyExposure.isExternalPlayerServerEnabled(context);
+    }
+
+    public static void setExternalPlayerServerEnabled(Context context, boolean enabled) {
+        ProxyExposure.setExternalPlayerServerEnabled(context, enabled);
+    }
+
+    public static void enableExternalPlayerServer(Context context) {
+        ProxyExposure.setExternalPlayerServerEnabled(context, true);
+        if (!ProxyExposure.isServerModeEnabled(context)) {
+            ProxyExposure.setServerModeEnabled(context, true);
+            restartProxyIfRunning(context);
+        }
+        start(context);
+    }
+
+    public static void disableExternalPlayerServer(Context context) {
+        ProxyExposure.setExternalPlayerServerEnabled(context, false);
+        if (ProxyExposure.isServerModeEnabled(context)) {
+            ProxyExposure.setServerModeEnabled(context, false);
+            restartProxyIfRunning(context);
+        }
     }
 
     public static List<EndpointInfo> endpoints(Context context) {
@@ -97,6 +124,11 @@ public final class HapBridge {
     public static String castAioUrl(Context context) {
         String lanBase = bestLanBaseUrl(context);
         return lanBase.isEmpty() ? "" : PlaylistCatalog.aioUrl(lanBase);
+    }
+
+    public static String castAioEpgUrl(Context context) {
+        String lanBase = bestLanBaseUrl(context);
+        return lanBase.isEmpty() ? "" : PlaylistCatalog.aioEpgUrl(lanBase);
     }
 
     public static boolean isLocalHapUrl(String url) {
@@ -258,6 +290,7 @@ public final class HapBridge {
         public final String lastError;
         public final long lastUpdateMillis;
         public final boolean serverModeEnabled;
+        public final boolean externalPlayerServerEnabled;
         public final List<EndpointInfo> endpoints;
         public final String log;
 
@@ -269,6 +302,7 @@ public final class HapBridge {
                 String lastError,
                 long lastUpdateMillis,
                 boolean serverModeEnabled,
+                boolean externalPlayerServerEnabled,
                 List<EndpointInfo> endpoints,
                 String log
         ) {
@@ -279,6 +313,7 @@ public final class HapBridge {
             this.lastError = lastError == null ? "" : lastError;
             this.lastUpdateMillis = lastUpdateMillis;
             this.serverModeEnabled = serverModeEnabled;
+            this.externalPlayerServerEnabled = externalPlayerServerEnabled;
             this.endpoints = endpoints;
             this.log = log == null ? "" : log;
         }

@@ -178,7 +178,16 @@ public class StreamVaultHapPluginService extends Service {
         String rawValues = request.getString(PluginContract.KEY_CONFIGURATION_VALUES_JSON, "{}");
         JSONObject values = new JSONObject(rawValues == null || rawValues.isEmpty() ? "{}" : rawValues);
 
-        if (values.has("serverMode")) {
+        if (values.has("externalPlayerServer")) {
+            if (values.optBoolean("externalPlayerServer", false)) {
+                HapBridge.enableExternalPlayerServer(this);
+            } else {
+                HapBridge.disableExternalPlayerServer(this);
+            }
+        } else if (values.has("serverMode")) {
+            if (!values.optBoolean("serverMode", false) && HapBridge.isExternalPlayerServerEnabled(this)) {
+                HapBridge.setExternalPlayerServerEnabled(this, false);
+            }
             HapBridge.setServerModeEnabled(this, values.optBoolean("serverMode", false));
         }
 
@@ -331,12 +340,19 @@ public class StreamVaultHapPluginService extends Service {
                                 .put(infoField("runtime", getString(R.string.label_runtime)))
                                 .put(infoField("lastError", getString(R.string.label_last_error)))
                                 .put(infoField("localAioUrl", getString(R.string.label_local_aio_url)))
-                                .put(infoField("castAioUrl", getString(R.string.label_cast_aio_url)))))
+                                .put(infoField("localAioEpgUrl", getString(R.string.label_local_aio_epg_url)))
+                                .put(infoField("castAioUrl", getString(R.string.label_cast_aio_url)))
+                                .put(infoField("castAioEpgUrl", getString(R.string.label_cast_aio_epg_url)))))
                 .put(new JSONObject()
                         .put("id", "network")
                         .put("title", getString(R.string.section_aio_lan))
                         .put("description", getString(R.string.message_lan_enabled))
                         .put("fields", new JSONArray()
+                                .put(new JSONObject()
+                                        .put("key", "externalPlayerServer")
+                                        .put("type", "boolean")
+                                        .put("label", getString(R.string.label_external_player_server))
+                                        .put("description", getString(R.string.message_external_player_server_detail)))
                                 .put(new JSONObject()
                                         .put("key", "serverMode")
                                         .put("type", "boolean")
@@ -408,7 +424,10 @@ public class StreamVaultHapPluginService extends Service {
                 .put("runtime", statusText(status))
                 .put("lastError", status.lastError)
                 .put("localAioUrl", HapBridge.LOCAL_AIO_URL)
+                .put("localAioEpgUrl", HapBridge.LOCAL_AIO_EPG_URL)
                 .put("castAioUrl", HapBridge.castAioUrl(this))
+                .put("castAioEpgUrl", HapBridge.castAioEpgUrl(this))
+                .put("externalPlayerServer", status.externalPlayerServerEnabled)
                 .put("serverMode", status.serverModeEnabled)
                 .put(KEY_NEW_M3U_NAME, "")
                 .put(KEY_NEW_M3U_URL, "")
@@ -456,8 +475,8 @@ public class StreamVaultHapPluginService extends Service {
                 .put("schemaVersion", 1)
                 .put("id", "com.streamvault.plugins.hap")
                 .put("name", "HaP")
-                .put("versionName", "1.1.2")
-                .put("versionCode", 4)
+                .put("versionName", "1.2.0")
+                .put("versionCode", 8)
                 .put("description", getString(R.string.plugin_description))
                 .put("providerName", HapBridge.AIO_PROVIDER_NAME)
                 .put("configurationMode", "activity")

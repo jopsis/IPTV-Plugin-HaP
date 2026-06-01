@@ -20,6 +20,7 @@ final class ProxyExposure {
     static final String ANY_HOST = "0.0.0.0";
 
     private static final String KEY_SERVER_MODE_LAN = "server_mode_lan";
+    private static final String KEY_EXTERNAL_PLAYER_SERVER = "external_player_server";
 
     private ProxyExposure() {
     }
@@ -33,6 +34,18 @@ final class ProxyExposure {
         context.getSharedPreferences(PlaylistCatalog.PREFS_NAME, Context.MODE_PRIVATE)
                 .edit()
                 .putBoolean(KEY_SERVER_MODE_LAN, enabled)
+                .commit();
+    }
+
+    static boolean isExternalPlayerServerEnabled(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(PlaylistCatalog.PREFS_NAME, Context.MODE_PRIVATE);
+        return prefs.getBoolean(KEY_EXTERNAL_PLAYER_SERVER, false);
+    }
+
+    static void setExternalPlayerServerEnabled(Context context, boolean enabled) {
+        context.getSharedPreferences(PlaylistCatalog.PREFS_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean(KEY_EXTERNAL_PLAYER_SERVER, enabled)
                 .commit();
     }
 

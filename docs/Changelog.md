@@ -2,6 +2,21 @@
 
 All notable changes to the StreamVault HaP Plugin will be documented here.
 
+## [1.2.0] - 2026-06-01
+
+### Added
+
+- Added standalone launcher support for phones and Android TV/Leanback so HaP can be opened without StreamVault.
+- Added an External player server mode that enables LAN exposure, starts HaP, and remembers the mode for automatic startup after boot or app update.
+- Added local and LAN M3U/EPG URL rows in the configuration UI for players such as TiviMate, OTT, and other IPTV clients.
+- Added the installed app version next to the HaP title in the configuration UI.
+
+### Changed
+
+- Updated app labeling and plugin metadata to describe HaP as both a StreamVault companion and an external IPTV player server.
+- Refreshed the launcher icon and Android TV banner with HaP lettering and multimedia branding.
+- Made Channel status collapsed by default.
+
 ## [1.1.5] - 2026-05-18
 
 ### Fixed
