@@ -218,6 +218,14 @@ final class PlaylistCatalog {
         return baseUrl + "/aio";
     }
 
+    static String aioEpgUrl() {
+        return aioEpgUrl(BASE_URL);
+    }
+
+    static String aioEpgUrl(String baseUrl) {
+        return baseUrl + "/aio/epg.xml";
+    }
+
     static String sourceUrl(String id) {
         return sourceUrl(BASE_URL, id);
     }

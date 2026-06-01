@@ -1,4 +1,4 @@
-# StreamVault HaP Plugin
+# HaP for StreamVault and External IPTV Players
 
 <p align="center">
 	<a href="https://github.com/jopsis/StreamVault-IPTV-Plugin-HaP/releases/latest/download/StreamVault-HaP-Plugin.apk"><img src="https://img.shields.io/badge/Download-StreamVault--HaP--Plugin.apk-2ea44f?style=for-the-badge&logo=android" alt="Download StreamVault HaP Plugin APK" /></a>
@@ -10,13 +10,16 @@
 	<a href="https://ko-fi.com/yourace"><img src="https://img.shields.io/badge/Support%20yourace%20(AceServe)-Ko--fi-ff5f5f?style=for-the-badge&logo=kofi" alt="Support yourace (AceServe creator) on Ko-fi" /></a>
 </p>
 
-This repository builds HaP as a StreamVault companion plugin APK.
+This repository builds HaP as a StreamVault companion plugin APK and standalone
+IPTV player server.
 
-HaP packages AceServe and HTTPAceProxy behind the StreamVault plugin API. It can
-publish a local AIO M3U provider, prepare AceStream playback, rewrite playback
-URLs for Google Cast, and expose its own native configuration screen.
+HaP packages AceServe and HTTPAceProxy behind the StreamVault plugin API and a
+launcher-accessible Android configuration screen. It can publish a local AIO M3U
+provider, prepare AceStream playback, rewrite playback URLs for Google Cast, and
+serve M3U/EPG URLs to external players such as TiviMate, OTT, and other IPTV
+clients.
 
-Current plugin version: `1.1.4` (`versionCode` 6).
+Current app version: `1.2.0` (`versionCode` 8).
 
 ## Capabilities
 
@@ -28,6 +31,9 @@ these capabilities:
 - `cast.rewriteUrl`: switches HaP to LAN mode and rewrites local URLs for Cast.
 - `configuration.activity`: opens the native HaP configuration activity.
 
+HaP also works standalone. Open the HaP launcher icon, enable External player
+server, then copy the M3U and EPG URLs into an external IPTV player.
+
 HaP uses `configurationMode: "activity"`. StreamVault should open
 `com.streamvault.plugin.hap.CONFIGURE` instead of rendering a host schema. The
 native activity is the supported configuration surface because HaP needs
@@ -38,9 +44,8 @@ TV-first custom layout behavior.
 
 The configuration screen is implemented by
 `com.streamvault.plugin.hap.HapConfigActivity`. It is exported for StreamVault
-through `com.streamvault.plugin.hap.CONFIGURE`, but it is intentionally not
-advertised as a launcher or Leanback launcher activity so the plugin stays
-hidden from the app drawer and is opened from StreamVault.
+through `com.streamvault.plugin.hap.CONFIGURE` and is also advertised as a phone
+and Android TV launcher activity so HaP can be configured without StreamVault.
 
 The UI uses Android resources for localization. English is the default locale and
 Spanish is provided through `values-es`; Android selects the language from the
@@ -50,10 +55,31 @@ The screen contains:
 
 - Runtime summary: color-coded runtime state, phase, AIO URL, LAN URL, and
   runtime actions.
+- External players: a persistent server switch for standalone use.
+- AIO and LAN server: copyable local/LAN M3U and EPG URLs.
 - Sources: collapsible and collapsed by default.
 - Clients: connected HTTPAceProxy clients.
 - Channel status: expanded by default with TV-focusable controls.
 - Logs: recent HaP runtime output.
+
+### External Players
+
+External player server mode is for TiviMate, OTT, and other IPTV players that
+consume ordinary M3U URLs.
+
+When enabled, HaP:
+
+- Enables LAN server mode.
+- Starts AceServe and HTTPAceProxy.
+- Keeps the mode enabled after reboot or app update.
+- Exposes copyable playlist and EPG endpoints:
+  - Local device: `http://127.0.0.1:8888/aio`
+  - Local EPG: `http://127.0.0.1:8888/aio/epg.xml`
+  - LAN playlist: `http://<device-lan-ip>:8888/aio`
+  - LAN EPG: `http://<device-lan-ip>:8888/aio/epg.xml`
+
+Use the local URL when the IPTV player runs on the same Android device. Use the
+LAN URL when the player runs on another device on the same network.
 
 ### Sources
 
@@ -143,6 +169,14 @@ The configuration activity must be exported and include the `DEFAULT` category:
     android:exported="true"
     android:label="@string/app_name">
     <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+    </intent-filter>
+    <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+    </intent-filter>
+    <intent-filter>
         <action android:name="com.streamvault.plugin.hap.CONFIGURE" />
         <category android:name="android.intent.category.DEFAULT" />
     </intent-filter>
@@ -179,7 +213,7 @@ $HOME/Library/Android/sdk/platform-tools/adb install -r app/build/outputs/apk/de
 ```
 
 After installation, refresh StreamVault's Plugins screen. The HaP plugin should
-appear as `HaP`, version `1.1.4`, with `configuration.activity`.
+appear as `HaP`, version `1.2.0`, with `configuration.activity`.
 
 The configuration activity can also be opened directly:
 
@@ -187,6 +221,13 @@ The configuration activity can also be opened directly:
 $HOME/Library/Android/sdk/platform-tools/adb shell am start \
   -a com.streamvault.plugin.hap.CONFIGURE \
   -p com.streamvault.plugin.hap
+```
+
+The standalone launcher entry can be opened with:
+
+```sh
+$HOME/Library/Android/sdk/platform-tools/adb shell monkey \
+  -p com.streamvault.plugin.hap 1
 ```
 
 ## Test Targets
@@ -199,7 +240,9 @@ The current manual device targets are:
 Recommended smoke test:
 
 - Install the plugin APK on both devices.
-- Open HaP directly and from StreamVault's Plugins screen.
+- Open HaP from the launcher and from StreamVault's Plugins screen.
+- Enable External player server and confirm M3U/EPG URLs are shown for local and
+  LAN playback.
 - Confirm Sources and Channel status start collapsed.
 - Add a real M3U AceStream list.
 - Load channel lists, run Test list, then click a channel row to test only that

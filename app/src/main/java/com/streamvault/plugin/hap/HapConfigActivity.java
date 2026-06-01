@@ -4,6 +4,8 @@ import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.StateListDrawable;
@@ -78,6 +80,7 @@ public class HapConfigActivity extends Activity {
     private Button stopChannelTestButton;
     private TextView logView;
     private Switch enabledSwitch;
+    private Switch externalServerSwitch;
     private Switch lanSwitch;
     private EditText sourceNameEdit;
     private EditText sourceUrlEdit;
@@ -147,13 +150,25 @@ public class HapConfigActivity extends Activity {
                 ViewGroup.LayoutParams.WRAP_CONTENT
         ));
 
-        root.addView(text(getString(R.string.screen_title), 30, COLOR_TEXT_PRIMARY, Typeface.BOLD), matchWrap());
+        LinearLayout appTitleRow = new LinearLayout(this);
+        appTitleRow.setOrientation(LinearLayout.HORIZONTAL);
+        appTitleRow.setGravity(Gravity.CENTER_VERTICAL);
+        root.addView(appTitleRow, matchWrap());
+
+        appTitleRow.addView(text(getString(R.string.screen_title), 30, COLOR_TEXT_PRIMARY, Typeface.BOLD), wrapWrap());
+        String versionName = appVersionName();
+        if (!versionName.isEmpty()) {
+            TextView versionPill = pill(getString(R.string.app_version_format, versionName), COLOR_SURFACE, COLOR_TEXT_TERTIARY);
+            versionPill.setTextSize(11);
+            appTitleRow.addView(versionPill, wrapWrapLeft(10));
+        }
 
         TextView subtitle = text(getString(R.string.screen_subtitle), 14, COLOR_TEXT_TERTIARY, Typeface.NORMAL);
         subtitle.setPadding(0, dp(4), 0, dp(14));
         root.addView(subtitle, matchWrap());
 
         root.addView(buildHeaderPanel(), matchWrap());
+        root.addView(buildExternalPlayersPanel(), matchWrapTop(12));
         root.addView(buildAioPanel(), matchWrapTop(12));
         root.addView(buildSourcesPanel(), matchWrapTop(12));
         root.addView(buildClientsPanel(), matchWrapTop(12));
@@ -244,6 +259,39 @@ public class HapConfigActivity extends Activity {
         Button prepare = button(getString(R.string.button_prepare_aio));
         prepare.setOnClickListener(v -> prepareAio());
         buttonRow.addView(prepare, wrapWrapLeft(8));
+
+        return panel.container;
+    }
+
+    private View buildExternalPlayersPanel() {
+        PanelViews panel = panel(getString(R.string.section_external_players), false, true);
+
+        TextView hint = text(getString(R.string.message_external_players_hint), 13, COLOR_TEXT_SECONDARY, Typeface.NORMAL);
+        hint.setPadding(0, 0, 0, dp(10));
+        panel.body.addView(hint, matchWrap());
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        panel.body.addView(row, matchWrap());
+
+        LinearLayout left = new LinearLayout(this);
+        left.setOrientation(LinearLayout.VERTICAL);
+        row.addView(left, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        left.addView(text(getString(R.string.label_external_player_server), 14, COLOR_TEXT_PRIMARY, Typeface.BOLD), matchWrap());
+        TextView detail = text(getString(R.string.message_external_player_server_detail), 12, COLOR_TEXT_TERTIARY, Typeface.NORMAL);
+        detail.setPadding(0, dp(3), 0, 0);
+        left.addView(detail, matchWrap());
+
+        externalServerSwitch = new Switch(this);
+        externalServerSwitch.setPadding(dp(10), 0, 0, 0);
+        externalServerSwitch.setOnCheckedChangeListener((buttonView, checked) -> {
+            if (suppressSwitchCallbacks) return;
+            setExternalPlayerServer(checked);
+        });
+        busyControls.add(externalServerSwitch);
+        row.addView(externalServerSwitch, wrapWrap());
 
         return panel.container;
     }
@@ -415,7 +463,7 @@ public class HapConfigActivity extends Activity {
     }
 
     private View buildChannelStatusPanel() {
-        PanelViews panel = panel(getString(R.string.section_channel_status), true, true);
+        PanelViews panel = panel(getString(R.string.section_channel_status), true, false);
 
         HorizontalScrollView controlsScroll = new HorizontalScrollView(this);
         controlsScroll.setHorizontalScrollBarEnabled(false);
@@ -530,6 +578,7 @@ public class HapConfigActivity extends Activity {
 
         suppressSwitchCallbacks = true;
         enabledSwitch.setChecked(status.desiredRunning);
+        externalServerSwitch.setChecked(status.externalPlayerServerEnabled);
         lanSwitch.setChecked(status.serverModeEnabled);
         suppressSwitchCallbacks = false;
 
@@ -546,9 +595,12 @@ public class HapConfigActivity extends Activity {
     private void renderEndpoints(HapBridge.HapStatus status) {
         endpointsContainer.removeAllViews();
         List<String> shown = new ArrayList<>();
-        addEndpointRow(getString(R.string.label_local), HapBridge.LOCAL_AIO_URL, shown);
+        addEndpointRow(getString(R.string.label_local_m3u), HapBridge.LOCAL_AIO_URL, shown);
+        addEndpointRow(getString(R.string.label_local_epg), HapBridge.LOCAL_AIO_EPG_URL, shown);
         String castUrl = HapBridge.castAioUrl(this);
-        if (!castUrl.isEmpty()) addEndpointRow(getString(R.string.label_cast_lan), castUrl, shown);
+        String castEpgUrl = HapBridge.castAioEpgUrl(this);
+        if (!castUrl.isEmpty()) addEndpointRow(getString(R.string.label_lan_m3u), castUrl, shown);
+        if (!castEpgUrl.isEmpty()) addEndpointRow(getString(R.string.label_lan_epg), castEpgUrl, shown);
         for (HapBridge.EndpointInfo endpoint : status.endpoints) {
             if ("127.0.0.1".equals(endpoint.host)) continue;
             addEndpointRow(endpoint.label, endpoint.baseUrl + "/aio", shown);
@@ -874,8 +926,31 @@ public class HapConfigActivity extends Activity {
         }, this::refreshConfigState);
     }
 
+    private void setExternalPlayerServer(boolean enabled) {
+        runBusy(
+                enabled ? getString(R.string.message_enabling_external_server) : getString(R.string.message_disabling_external_server),
+                () -> {
+                    if (enabled) {
+                        HapBridge.enableExternalPlayerServer(this);
+                        boolean ready = HapBridge.waitForProxyReady(90_000);
+                        String url = HapBridge.castAioUrl(this);
+                        if (url.isEmpty()) url = HapBridge.LOCAL_AIO_URL;
+                        return ready
+                                ? getString(R.string.message_external_server_ready, url)
+                                : getString(R.string.message_external_server_timeout);
+                    }
+                    HapBridge.disableExternalPlayerServer(this);
+                    return getString(R.string.message_external_server_disabled);
+                },
+                this::refreshConfigState
+        );
+    }
+
     private void setServerMode(boolean enabled) {
         runBusy(enabled ? getString(R.string.message_enabling_lan) : getString(R.string.message_disabling_lan), () -> {
+            if (!enabled && HapBridge.isExternalPlayerServerEnabled(this)) {
+                HapBridge.setExternalPlayerServerEnabled(this, false);
+            }
             HapBridge.setServerModeEnabled(this, enabled);
             return enabled ? getString(R.string.message_lan_enabled) : getString(R.string.message_lan_disabled);
         }, this::refreshConfigState);
@@ -1189,6 +1264,15 @@ public class HapConfigActivity extends Activity {
             return getString(R.string.peer_detail_available, result.totalPeers, result.peers, result.httpPeers);
         }
         return result.statusText.isEmpty() ? getString(R.string.peer_detail_unavailable) : result.statusText;
+    }
+
+    private String appVersionName() {
+        try {
+            PackageInfo packageInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
+            return packageInfo.versionName == null ? "" : packageInfo.versionName.trim();
+        } catch (PackageManager.NameNotFoundException ignored) {
+            return "";
+        }
     }
 
     private int peerColor(HapBridge.PeerResultInfo result) {

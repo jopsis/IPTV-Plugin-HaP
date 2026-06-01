@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Plugin HaP de StreamVault</string>
+    <string name="app_name">HaP</string>
+    <string name="app_version_format">v%1$s</string>
     <string name="screen_title">HaP</string>
-    <string name="screen_subtitle">AceServe y HTTPAceProxy como plugin de StreamVault</string>
+    <string name="screen_subtitle">AceServe y HTTPAceProxy para StreamVault y reproductores IPTV externos</string>
     <string name="status_idle">Inactivo</string>
     <string name="status_running">Arrancado</string>
     <string name="status_stopped">Parado</string>
@@ -26,13 +27,23 @@
     <string name="label_phase">Estado</string>
     <string name="label_last_error">Último error</string>
     <string name="label_local_aio_url">URL /aio local</string>
+    <string name="label_local_aio_epg_url">URL EPG /aio local</string>
     <string name="label_cast_aio_url">URL /aio Cast</string>
+    <string name="label_cast_aio_epg_url">URL EPG /aio Cast</string>
     <string name="button_restart_proxy">Reiniciar proxy</string>
     <string name="button_restart_hap">Reiniciar HaP</string>
     <string name="button_prepare_aio">Preparar /aio</string>
+    <string name="section_external_players">Reproductores externos</string>
+    <string name="label_external_player_server">Servidor para reproductores externos</string>
+    <string name="message_external_players_hint">Usa las URLs M3U y EPG de abajo en TiviMate, OTT u otro reproductor IPTV.</string>
+    <string name="message_external_player_server_detail">Mantiene HaP preparado tras reiniciar y expone la lista en tu red local.</string>
     <string name="section_aio_lan">AIO y servidor LAN</string>
     <string name="label_local_list">Lista local</string>
     <string name="label_local">Local</string>
+    <string name="label_local_m3u">M3U local</string>
+    <string name="label_local_epg">EPG local</string>
+    <string name="label_lan_m3u">M3U LAN</string>
+    <string name="label_lan_epg">EPG LAN</string>
     <string name="label_cast_lan">Chromecast/LAN</string>
     <string name="label_lan_server">Servidor LAN</string>
     <string name="button_copy">Copiar</string>
@@ -88,6 +99,11 @@
     <string name="message_cast_url_rewritten">URL de HaP reescrita para Cast.</string>
     <string name="message_unsupported_plugin_request">Petición del plugin no soportada.</string>
     <string name="message_unknown_hap_action">Acción de HaP desconocida.</string>
+    <string name="message_enabling_external_server">Activando servidor para reproductores externos...</string>
+    <string name="message_disabling_external_server">Desactivando servidor para reproductores externos...</string>
+    <string name="message_external_server_ready">Servidor para reproductores externos preparado: %1$s</string>
+    <string name="message_external_server_timeout">El servidor externo se activó, pero /aio no respondió a tiempo.</string>
+    <string name="message_external_server_disabled">Servidor para reproductores externos desactivado.</string>
     <string name="message_enabling_lan">Activando servidor LAN...</string>
     <string name="message_disabling_lan">Desactivando servidor LAN...</string>
     <string name="message_lan_enabled">Servidor LAN activado para Chromecast y otros clientes.</string>
@@ -120,7 +136,7 @@
     <string name="source_m3u_group_description">Listas M3U AceStream del usuario</string>
     <string name="source_custom_label">Custom</string>
     <string name="source_custom_description">Canales AceStream añadidos manualmente</string>
-    <string name="plugin_description">Plugin compañero de AceServe y HTTPAceProxy para StreamVault.</string>
+    <string name="plugin_description">Compañero de AceServe y HTTPAceProxy para StreamVault y reproductores IPTV externos.</string>
     <string name="error_unknown_source">Fuente desconocida.</string>
     <string name="error_custom_managed_in_custom">La lista custom se gestiona desde Custom.</string>
     <string name="error_source_name_empty">El nombre de la fuente está vacío.</string>
