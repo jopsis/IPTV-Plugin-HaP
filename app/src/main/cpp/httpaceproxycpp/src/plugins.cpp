@@ -103,6 +103,16 @@ bool is_http_url(const std::string& value) {
     return (parsed.scheme == "http" || parsed.scheme == "https") && !parsed.host.empty();
 }
 
+bool is_acestream_api_url(const std::string& value) {
+    auto parsed = parse_url(value);
+    auto scheme = lower(parsed.scheme);
+    auto host = lower(parsed.host);
+    auto path = lower(parsed.path);
+    return (scheme == "http" || scheme == "https") &&
+           host == "api.acestream.me" &&
+           (path == "/all" || path == "/search");
+}
+
 std::string strip_surrounding_quotes(std::string value) {
     value = trim(value);
     if (value.size() >= 2 && ((value.front() == '"' && value.back() == '"') ||
@@ -350,10 +360,16 @@ protected:
         for (const auto& source : sources) {
             try {
                 auto response = http_client_.get(source.url, {{"User-Agent", kBrowserUserAgent}}, 60, true);
-                for (const auto& epg_url : extract_epg_urls_from_m3u(response.body)) {
-                    add_unique_url(epg_urls, epg_url);
+                bool ace_api_source = is_acestream_api_url(source.url);
+                auto items = ace_api_source
+                             ? parse_acestream_api_items(response.body, channels, picons, source.name)
+                             : parse_m3u_acestream_items(response.body, channels, picons);
+                if (!ace_api_source) {
+                    for (const auto& epg_url : extract_epg_urls_from_m3u(response.body)) {
+                        add_unique_url(epg_urls, epg_url);
+                    }
                 }
-                for (auto& item : parse_m3u_acestream_items(response.body, channels, picons)) {
+                for (auto& item : items) {
                     if (item.group.empty() || item.group == "Unknown") item.group = source.name;
                     playlist.add_item(item);
                 }

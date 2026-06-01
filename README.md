@@ -84,15 +84,17 @@ LAN URL when the player runs on another device on the same network.
 Sources are intentionally user-managed for public distribution. The plugin no
 longer ships hardcoded playlist sources.
 
-The Sources section allows users to add M3U lists only. Each list requires:
+The Sources section allows users to add M3U lists or AceStream API endpoints.
+Each source requires:
 
 - Name.
-- HTTP or HTTPS M3U URL.
+- HTTP or HTTPS M3U URL, or an AceStream API URL.
 
 When a list is added or updated, HaP downloads it and validates that:
 
-- The playlist starts with `#EXTM3U`.
-- It contains M3U channels.
+- M3U playlists start with `#EXTM3U`.
+- M3U playlists contain channels.
+- AceStream API responses contain at least one `infohash`.
 - At least one channel points to AceStream content.
 
 AceStream content is accepted when the channel URL is one of:
@@ -103,6 +105,15 @@ AceStream content is accepted when the channel URL is one of:
 - HTTP or HTTPS URLs that point to AceStream-like media files, such as
   `.acelive`, `.acestream`, `.acemedia`, or `.torrent`.
 - HTTP or HTTPS URLs with `id`, `infohash`, or `content_id` query parameters.
+
+AceStream API sources are accepted for:
+
+- `https://api.acestream.me/all`
+- `https://api.acestream.me/search`
+
+HaP preserves the user-provided query filters, adds the public AceStream API
+defaults when `api_version` or `api_key` are omitted, and formats JSON results
+as M3U channels internally.
 
 ### Custom Channels
 
@@ -211,7 +222,7 @@ $HOME/Library/Android/sdk/platform-tools/adb install -r app/build/outputs/apk/de
 ```
 
 After installation, refresh StreamVault's Plugins screen. The HaP plugin should
-appear as `HaP`, version `1.2.0`, with `configuration.activity`.
+appear as `HaP`, version `1.2.1`, with `configuration.activity`.
 
 The configuration activity can also be opened directly:
 

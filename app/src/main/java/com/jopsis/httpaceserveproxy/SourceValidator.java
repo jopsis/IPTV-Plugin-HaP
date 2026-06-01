@@ -4,6 +4,10 @@ import android.content.Context;
 
 import com.streamvault.plugin.hap.R;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.json.JSONTokener;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -11,6 +15,7 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
+import java.net.URLDecoder;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
@@ -24,13 +29,16 @@ final class SourceValidator {
     private static final String BROWSER_ONLY_IPFS_GATEWAY_HOST = "inbrowser.link";
     private static final String DWEB_GATEWAY_HOST = "dweb.link";
     private static final String DIRECT_IPFS_GATEWAY_BASE = "https://ipfs.io";
+    private static final String ACESTREAM_API_HOST = "api.acestream.me";
+    private static final String ACESTREAM_DEFAULT_API_VERSION = "1";
+    private static final String ACESTREAM_DEFAULT_API_KEY = "test_api_key";
     private static final Pattern BARE_HASH = Pattern.compile("^[A-Fa-f0-9]{40}$");
 
     private SourceValidator() {
     }
 
     static ValidationResult validateM3uSource(Context context, String label, String rawUrl) {
-        String normalized = rawUrl == null ? "" : rawUrl.trim();
+        String normalized = normalizeSourceUrl(rawUrl);
         if (normalized.isEmpty()) {
             return ValidationResult.error(normalized, context.getString(R.string.error_source_url_empty));
         }
@@ -42,10 +50,12 @@ final class SourceValidator {
         }
 
         try {
-            validateM3u(context, fetch(context, normalized), label);
+            String body = fetch(context, normalized);
+            if (isAceStreamApiUrl(normalized)) validateAceStreamApi(context, body, label);
+            else validateM3u(context, body, label);
             return ValidationResult.ok(normalized);
         } catch (Exception e) {
-            if (e instanceof IOException) {
+            if (!isAceStreamApiUrl(normalized) && e instanceof IOException) {
                 ValidationResult fallback = validateFallbackGateway(context, label, normalized);
                 if (fallback.valid) return fallback;
             }
@@ -65,6 +75,57 @@ final class SourceValidator {
             return ValidationResult.ok(fallbackUrl);
         } catch (Exception ignored) {
             return ValidationResult.error(normalized, "");
+        }
+    }
+
+    private static String normalizeSourceUrl(String rawUrl) {
+        String normalized = rawUrl == null ? "" : rawUrl.trim();
+        String lower = normalized.toLowerCase(Locale.ROOT);
+        if (lower.startsWith(ACESTREAM_API_HOST + "/") || lower.startsWith(ACESTREAM_API_HOST + "?")) {
+            normalized = "https://" + normalized;
+        }
+        return isAceStreamApiUrl(normalized) ? withAceStreamApiDefaults(normalized) : normalized;
+    }
+
+    private static String withAceStreamApiDefaults(String value) {
+        boolean hasApiVersion = false;
+        boolean hasApiKey = false;
+        try {
+            URI uri = new URI(value);
+            String query = uri.getRawQuery();
+            if (query != null) {
+                for (String part : query.split("&")) {
+                    int equals = part.indexOf('=');
+                    String rawKey = equals >= 0 ? part.substring(0, equals) : part;
+                    String key = decodeQueryKey(rawKey).trim().toLowerCase(Locale.ROOT);
+                    if ("api_version".equals(key)) hasApiVersion = true;
+                    if ("api_key".equals(key)) hasApiKey = true;
+                }
+            }
+        } catch (Exception ignored) {
+        }
+
+        int fragment = value.indexOf('#');
+        String suffix = fragment >= 0 ? value.substring(fragment) : "";
+        String base = fragment >= 0 ? value.substring(0, fragment) : value;
+        StringBuilder out = new StringBuilder(base);
+        String separator = base.contains("?") ? "&" : "?";
+        if (!hasApiVersion) {
+            out.append(separator).append("api_version=").append(ACESTREAM_DEFAULT_API_VERSION);
+            separator = "&";
+        }
+        if (!hasApiKey) {
+            out.append(separator).append("api_key=").append(ACESTREAM_DEFAULT_API_KEY);
+        }
+        out.append(suffix);
+        return out.toString();
+    }
+
+    private static String decodeQueryKey(String value) {
+        try {
+            return URLDecoder.decode(value, "UTF-8");
+        } catch (Exception ignored) {
+            return value;
         }
     }
 
@@ -102,6 +163,40 @@ final class SourceValidator {
         throw new IllegalArgumentException(context.getString(R.string.error_source_no_acestream, label));
     }
 
+    private static void validateAceStreamApi(Context context, String body, String label) {
+        try {
+            Object json = new JSONTokener(body).nextValue();
+            if (countAceStreamApiChannels(json) > 0) return;
+        } catch (Exception ignored) {
+        }
+        throw new IllegalArgumentException(context.getString(R.string.error_source_no_acestream, label));
+    }
+
+    private static int countAceStreamApiChannels(Object value) {
+        if (value instanceof JSONArray) {
+            JSONArray array = (JSONArray) value;
+            int count = 0;
+            for (int i = 0; i < array.length(); i++) {
+                count += countAceStreamApiChannels(array.opt(i));
+            }
+            return count;
+        }
+        if (!(value instanceof JSONObject)) return 0;
+
+        JSONObject object = (JSONObject) value;
+        Object result = object.opt("result");
+        if (result != null && result != JSONObject.NULL) return countAceStreamApiChannels(result);
+
+        Object results = object.opt("results");
+        if (results != null && results != JSONObject.NULL) return countAceStreamApiChannels(results);
+
+        Object items = object.opt("items");
+        if (items != null && items != JSONObject.NULL) return countAceStreamApiChannels(items);
+
+        String infohash = object.optString("infohash", "").trim();
+        return BARE_HASH.matcher(infohash).matches() ? 1 : 0;
+    }
+
     private static boolean isHttpUrl(String value) {
         try {
             URL url = new URL(value);
@@ -110,6 +205,20 @@ final class SourceValidator {
                     && url.getHost() != null
                     && !url.getHost().trim().isEmpty();
         } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private static boolean isAceStreamApiUrl(String value) {
+        try {
+            URL url = new URL(value);
+            String scheme = url.getProtocol().toLowerCase(Locale.ROOT);
+            String host = url.getHost() == null ? "" : url.getHost().toLowerCase(Locale.ROOT);
+            String path = url.getPath() == null ? "" : url.getPath().toLowerCase(Locale.ROOT);
+            return ("http".equals(scheme) || "https".equals(scheme))
+                    && ACESTREAM_API_HOST.equals(host)
+                    && ("/all".equals(path) || "/search".equals(path));
+        } catch (Exception ignored) {
             return false;
         }
     }
