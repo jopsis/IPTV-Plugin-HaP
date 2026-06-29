@@ -34,8 +34,8 @@ android {
         applicationId = "com.streamvault.plugin.hap"
         minSdk = 27
         targetSdk = 36
-        versionCode = 9
-        versionName = "1.2.1"
+        versionCode = 10
+        versionName = "1.2.2"
 
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a")

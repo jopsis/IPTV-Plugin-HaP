@@ -15,6 +15,15 @@ import com.jopsis.httpaceserveproxy.HapBridge;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.URL;
 import java.util.Locale;
 
 public class StreamVaultHapPluginService extends Service {
@@ -146,11 +155,226 @@ public class StreamVaultHapPluginService extends Service {
         response.putBoolean(PluginContract.KEY_HANDLED, true);
         HapBridge.start(this);
         boolean ready = HapBridge.waitForProxyReady(90_000);
-        response.putBoolean(PluginContract.KEY_SUCCESS, ready);
-        response.putString(
-                PluginContract.KEY_MESSAGE,
-                ready ? getString(R.string.message_playback_ready) : getString(R.string.message_playback_not_ready)
-        );
+        if (!ready) {
+            response.putBoolean(PluginContract.KEY_SUCCESS, false);
+            response.putString(PluginContract.KEY_MESSAGE, getString(R.string.message_playback_not_ready));
+            return;
+        }
+
+        String localUrl = startTsfProxy(url);
+        if (localUrl == null) {
+            response.putBoolean(PluginContract.KEY_SUCCESS, false);
+            response.putString(PluginContract.KEY_MESSAGE, "Could not start local stream proxy");
+            return;
+        }
+
+        response.putBoolean(PluginContract.KEY_SUCCESS, true);
+        response.putString(PluginContract.KEY_OUTPUT_URL, localUrl);
+        response.putString(PluginContract.KEY_MESSAGE, getString(R.string.message_playback_ready));
+        android.util.Log.d("HaP-TSF", "handlePreparePlayback output_url=" + localUrl + " original=" + url);
+    }
+
+    private String startTsfProxy(String originalUrl) {
+        try {
+            ServerSocket server = new ServerSocket(0, 1, java.net.InetAddress.getByName("127.0.0.1"));
+            int port = server.getLocalPort();
+            String localUrl = "http://127.0.0.1:" + port + "/stream";
+
+            new Thread(() -> {
+                Socket client = null;
+                Socket proxySocket = null;
+                InputStream fromProxy = null;
+                try {
+                    client = server.accept();
+
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(client.getInputStream()));
+                    String line;
+                    while ((line = reader.readLine()) != null && !line.isEmpty()) {
+                    }
+
+                    OutputStream toClient = client.getOutputStream();
+                    toClient.write("HTTP/1.0 200 OK\r\nContent-Type: video/mp2t\r\n\r\n".getBytes());
+
+                    String proxyUrl = originalUrl;
+                    for (int redirectCount = 0; redirectCount < 5; redirectCount++) {
+                        URL realUrl = new URL(proxyUrl);
+                        android.util.Log.d("HaP-TSF", "connecting to " + realUrl.getHost() + ":" + realUrl.getPort() + realUrl.getFile());
+                        if (proxySocket != null) try { proxySocket.close(); } catch (Exception ignored) {}
+                        proxySocket = new Socket(realUrl.getHost(), realUrl.getPort());
+                        proxySocket.setTcpNoDelay(true);
+                        proxySocket.setSoTimeout(120000);
+                        OutputStream proxyOut = proxySocket.getOutputStream();
+                        fromProxy = proxySocket.getInputStream();
+                        android.util.Log.d("HaP-TSF", "connected fd=" + proxySocket);
+
+                        String path = realUrl.getFile();
+                        if (realUrl.getQuery() != null) path += "?" + realUrl.getQuery();
+                        String req = "GET " + path + " HTTP/1.1\r\nHost: " + realUrl.getHost() + ":" + realUrl.getPort() + "\r\nConnection: close\r\n\r\n";
+                        proxyOut.write(req.getBytes());
+                        proxyOut.flush();
+
+                        ByteArrayOutputStream headerBuf = new ByteArrayOutputStream();
+                        int b1 = -1, b2 = -1, b3 = -1, b4 = -1;
+                        while (true) {
+                            int b = fromProxy.read();
+                            if (b < 0) throw new IOException("proxy connection closed before headers");
+                            headerBuf.write(b);
+                            b1 = b2; b2 = b3; b3 = b4; b4 = b;
+                            if (b1 == '\r' && b2 == '\n' && b3 == '\r' && b4 == '\n') break;
+                        }
+                        String headerStr = new String(headerBuf.toByteArray(), "UTF-8");
+                        String firstLine = headerStr.substring(0, Math.min(headerStr.length(), 200)).replace("\r\n", " | ");
+                        android.util.Log.d("HaP-TSF", "proxy response: " + firstLine);
+
+                        if (headerStr.startsWith("HTTP/1.1 302") || headerStr.startsWith("HTTP/1.0 302")
+                                || headerStr.startsWith("HTTP/1.1 301") || headerStr.startsWith("HTTP/1.0 301")) {
+                            String location = extractHeader(headerStr, "Location");
+                            if (location == null || location.isEmpty())
+                                throw new IOException("redirect without Location");
+                            if (location.startsWith("/")) {
+                                location = "http://" + realUrl.getHost() + ":" + realUrl.getPort() + location;
+                            }
+                            android.util.Log.d("HaP-TSF", "redirect to " + location);
+                            proxyUrl = location;
+                            continue;
+                        }
+
+                        if (!headerStr.startsWith("HTTP/1.1 200") && !headerStr.startsWith("HTTP/1.0 200")) {
+                            throw new IOException("proxy returned non-200: " + headerStr.substring(0, Math.min(headerStr.length(), 200)));
+                        }
+                        break;
+                    }
+
+                    android.util.Log.d("HaP-TSF", "starting TS streaming with retry");
+                    byte[] buf = new byte[262144];
+                    byte[] packetBuf = new byte[131072];
+                    int streamingRetries = 0;
+
+                    while (streamingRetries < 60) {
+                        int pos = 0;
+                        int packetCount = 0;
+                        boolean gotData = false;
+
+                        try {
+                            while (true) {
+                                int n;
+                                try {
+                                    n = fromProxy.read(buf, pos, buf.length - pos);
+                                } catch (IOException e) {
+                                    if (packetCount > 0) toClient.write(packetBuf, 0, packetCount * 188);
+                                    throw e;
+                                }
+                                if (n < 0) {
+                                    if (packetCount > 0) toClient.write(packetBuf, 0, packetCount * 188);
+                                    android.util.Log.d("HaP-TSF", "stream ended cleanly");
+                                    return;
+                                }
+                                pos += n;
+                                gotData = true;
+
+                                int readIdx = 0;
+                                while (readIdx + 376 <= pos) {
+                                    if ((buf[readIdx] & 0xFF) == 0x47
+                                            && (buf[readIdx + 188] & 0xFF) == 0x47
+                                            && (buf[readIdx + 376] & 0xFF) == 0x47) {
+                                        System.arraycopy(buf, readIdx, packetBuf, packetCount * 188, 188);
+                                        packetCount++;
+                                        readIdx += 188;
+                                        if (packetCount * 188 + 188 > packetBuf.length || readIdx + 376 > pos) {
+                                            toClient.write(packetBuf, 0, packetCount * 188);
+                                            packetCount = 0;
+                                        }
+                                    } else {
+                                        if (packetCount > 0) {
+                                            toClient.write(packetBuf, 0, packetCount * 188);
+                                            packetCount = 0;
+                                        }
+                                        readIdx++;
+                                    }
+                                }
+
+                                if (packetCount > 0) {
+                                    toClient.write(packetBuf, 0, packetCount * 188);
+                                    packetCount = 0;
+                                }
+
+                                if (readIdx > 0) {
+                                    int remaining = pos - readIdx;
+                                    if (remaining > 0) System.arraycopy(buf, readIdx, buf, 0, remaining);
+                                    pos = remaining;
+                                }
+                            }
+                        } catch (IOException e) {
+                            streamingRetries++;
+                            android.util.Log.w("HaP-TSF", "stream error (" + streamingRetries + "): " + e);
+                            if (!gotData && streamingRetries >= 15) {
+                                android.util.Log.e("HaP-TSF", "no data after " + streamingRetries + " retries, giving up");
+                                break;
+                            }
+                            try { Thread.sleep(2000); } catch (InterruptedException ie) { break; }
+                            try { if (proxySocket != null) { proxySocket.close(); } } catch (Exception ignored) {}
+                            try {
+                                URL retryUrl = new URL(proxyUrl);
+                                proxySocket = new Socket(retryUrl.getHost(), retryUrl.getPort());
+                                proxySocket.setTcpNoDelay(true);
+                                proxySocket.setSoTimeout(120000);
+                                fromProxy = proxySocket.getInputStream();
+                                OutputStream proxyOut = proxySocket.getOutputStream();
+                                String path2 = retryUrl.getFile();
+                                if (retryUrl.getQuery() != null) path2 += "?" + retryUrl.getQuery();
+                                String req2 = "GET " + path2 + " HTTP/1.1\r\nHost: " + retryUrl.getHost() + ":" + retryUrl.getPort() + "\r\nConnection: close\r\n\r\n";
+                                proxyOut.write(req2.getBytes());
+                                proxyOut.flush();
+                                ByteArrayOutputStream hb = new ByteArrayOutputStream();
+                                int bb1=-1,bb2=-1,bb3=-1,bb4=-1;
+                                while (true) {
+                                    int b = fromProxy.read();
+                                    if (b < 0) throw new IOException("retry closed");
+                                    hb.write(b);
+                                    bb1=bb2; bb2=bb3; bb3=bb4; bb4=b;
+                                    if (bb1=='\r'&&bb2=='\n'&&bb3=='\r'&&bb4=='\n') break;
+                                }
+                                String hs = new String(hb.toByteArray(), "UTF-8");
+                                android.util.Log.d("HaP-TSF", "retry " + streamingRetries + " response: " + hs.substring(0, Math.min(hs.length(), 100)).replace("\r\n"," "));
+                                if (!hs.startsWith("HTTP/1.1 200") && !hs.startsWith("HTTP/1.0 200")) {
+                                    android.util.Log.w("HaP-TSF", "retry got non-200, retrying...");
+                                    continue;
+                                }
+                            } catch (IOException e2) {
+                                android.util.Log.w("HaP-TSF", "retry connect failed: " + e2);
+                                continue;
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    android.util.Log.e("HaP-TSF", "proxy thread error: " + e);
+                } finally {
+                    try { if (proxySocket != null) proxySocket.close(); } catch (Exception ignored) {}
+                    try { if (client != null) client.close(); } catch (Exception ignored) {}
+                    try { server.close(); } catch (Exception ignored) {}
+                }
+            }, "tsf-proxy-" + port).start();
+
+            android.util.Log.d("HaP-TSF", "started tsf proxy on port " + port + " url=" + localUrl);
+            return localUrl;
+        } catch (Exception e) {
+            android.util.Log.e("HaP-TSF", "startTsfProxy failed: " + e);
+            return null;
+        }
+    }
+
+    private static String extractHeader(String headers, String name) {
+        String lower = headers.toLowerCase(java.util.Locale.ROOT);
+        String search = "\r\n" + name.toLowerCase(java.util.Locale.ROOT) + ": ";
+        int idx = lower.indexOf(search);
+        if (idx < 0) {
+            search = "\r\n" + name.toLowerCase(java.util.Locale.ROOT) + ":";
+            idx = lower.indexOf(search);
+        }
+        if (idx < 0) return null;
+        int start = idx + search.length();
+        int end = headers.indexOf("\r\n", start);
+        return end < 0 ? headers.substring(start).trim() : headers.substring(start, end).trim();
     }
 
     private void handleRewriteCastUrl(Bundle request, Bundle response) {
@@ -475,8 +699,8 @@ public class StreamVaultHapPluginService extends Service {
                 .put("schemaVersion", 1)
                 .put("id", "com.streamvault.plugins.hap")
                 .put("name", "HaP")
-                .put("versionName", "1.2.1")
-                .put("versionCode", 9)
+                .put("versionName", "1.2.2")
+                .put("versionCode", 10)
                 .put("description", getString(R.string.plugin_description))
                 .put("providerName", HapBridge.AIO_PROVIDER_NAME)
                 .put("configurationMode", "activity")

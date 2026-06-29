@@ -522,7 +522,7 @@ public class HapConfigActivity extends Activity {
         ));
         LinearLayout.LayoutParams listParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                dp(320)
+                ViewGroup.LayoutParams.WRAP_CONTENT
         );
         listParams.topMargin = dp(10);
         panel.body.addView(channelsScroll, listParams);
@@ -1150,7 +1150,12 @@ public class HapConfigActivity extends Activity {
                         renderChannels();
                     });
                 } catch (Throwable error) {
-                    main(() -> renderChannelFeedback(errorMessage(error)));
+                    String errorText = errorMessage(error);
+                    main(() -> {
+                        peerResults.put(channel.contentId, HapBridge.PeerResultInfo.errorResult(errorText));
+                        renderChannels();
+                        renderChannelFeedback(errorText);
+                    });
                 }
             }
             main(() -> {

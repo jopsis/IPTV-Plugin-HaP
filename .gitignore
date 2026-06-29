@@ -11,3 +11,5 @@ local.properties
 *.pfx
 keystore.properties
 /graphify-out
+app/.DS_Store
+.DS_Store
