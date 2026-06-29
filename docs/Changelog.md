@@ -2,6 +2,23 @@
 
 All notable changes to the StreamVault HaP Plugin will be documented here.
 
+## [1.2.2] - 2026-06-28
+
+### Added
+
+- Local TS proxy (startTsfProxy) in `handlePreparePlayback` that strips AceStream 72-byte framing headers from streams before forwarding to ExoPlayer, using raw TCP sockets instead of HttpURLConnection
+- Triple 0x47 sync-byte verification at 188-byte intervals to handle AceStream framing headers of any size
+- Batch packet writes to reduce syscall overhead during TS streaming
+- Automatic retry mechanism (up to 60 attempts, 2s interval) when the HaP proxy resets the connection — the ExoPlayer socket stays alive during retries
+- HTTP redirect following (302) in the proxy thread
+- `PeerResultInfo.errorResult()` public factory method for creating error results from outside the package
+- Diagnostic logging with `HaP-TSF` tag for TS proxy debugging
+
+### Fixed
+
+- Channel list height now uses WRAP_CONTENT instead of dp(320), fixing scrolling on phone form factors where nested ScrollViews intercepted touch events
+- Test errors now store a `PeerResultInfo` in `peerResults` map so each channel row displays the error (red pill + error text) instead of only showing it in the feedback area
+
 ## [1.2.1] - 2026-06-01
 
 ### Added

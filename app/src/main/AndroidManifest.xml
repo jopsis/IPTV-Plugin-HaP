@@ -53,7 +53,7 @@
             </intent-filter>
             <meta-data
                 android:name="com.streamvault.plugin.MANIFEST_JSON"
-                android:value="{&quot;schemaVersion&quot;:1,&quot;id&quot;:&quot;com.streamvault.plugins.hap&quot;,&quot;name&quot;:&quot;HaP&quot;,&quot;versionName&quot;:&quot;1.2.1&quot;,&quot;versionCode&quot;:9,&quot;description&quot;:&quot;AceServe and HTTPAceProxy companion for StreamVault and external IPTV players.&quot;,&quot;providerName&quot;:&quot;HaP AIO&quot;,&quot;configurationMode&quot;:&quot;activity&quot;,&quot;configurationActivityAction&quot;:&quot;com.streamvault.plugin.hap.CONFIGURE&quot;,&quot;capabilities&quot;:[&quot;provider.m3u&quot;,&quot;playback.prepare&quot;,&quot;cast.rewriteUrl&quot;,&quot;configuration.activity&quot;]}" />
+                android:value="{&quot;schemaVersion&quot;:1,&quot;id&quot;:&quot;com.streamvault.plugins.hap&quot;,&quot;name&quot;:&quot;HaP&quot;,&quot;versionName&quot;:&quot;1.2.2&quot;,&quot;versionCode&quot;:10,&quot;description&quot;:&quot;AceServe and HTTPAceProxy companion for StreamVault and external IPTV players.&quot;,&quot;providerName&quot;:&quot;HaP AIO&quot;,&quot;configurationMode&quot;:&quot;activity&quot;,&quot;configurationActivityAction&quot;:&quot;com.streamvault.plugin.hap.CONFIGURE&quot;,&quot;capabilities&quot;:[&quot;provider.m3u&quot;,&quot;playback.prepare&quot;,&quot;cast.rewriteUrl&quot;,&quot;configuration.activity&quot;]}" />
             <meta-data
                 android:name="com.streamvault.plugin.ID"
                 android:value="com.streamvault.plugins.hap" />
@@ -62,10 +62,10 @@
                 android:value="HaP" />
             <meta-data
                 android:name="com.streamvault.plugin.VERSION_NAME"
-                android:value="1.2.1" />
+                android:value="1.2.2" />
             <meta-data
                 android:name="com.streamvault.plugin.VERSION_CODE"
-                android:value="9" />
+                android:value="10" />
             <meta-data
                 android:name="com.streamvault.plugin.DESCRIPTION"
                 android:value="AceServe and HTTPAceProxy companion for StreamVault and external IPTV players." />

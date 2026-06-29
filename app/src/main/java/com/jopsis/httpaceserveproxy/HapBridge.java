@@ -447,6 +447,10 @@ public final class HapBridge {
             this.statusText = statusText == null ? "" : statusText;
             this.error = error == null ? "" : error;
         }
+
+        public static PeerResultInfo errorResult(String errorText) {
+            return new PeerResultInfo(false, false, 0, 0, 0, "check failed", errorText);
+        }
     }
 
     public static final class SaveResult {
