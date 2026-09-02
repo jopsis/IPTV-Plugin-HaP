@@ -69,7 +69,7 @@ librerías se extraen al disco y por tanto son ejecutables.
   `libipfs.so` y se coloca en `app/src/main/jniLibs/<abi>/`.
 - `IpfsRuntime` (espejo de `AceServeRuntime`) hace `init` + `daemon` con
   `IPFS_PATH` apuntando a `filesDir/ipfs/<abi>`.
-- El gateway HTTP local (`127.0.0.1:8081`) es lo que consume el reproductor.
+- El gateway HTTP local (`127.0.0.1:8080`) es lo que consume el reproductor.
 
 Ventajas frente a Termux:
 
@@ -141,7 +141,7 @@ y `62062`):
 
 | Servicio | Puerto propuesto | Nota |
 |---|---|---|
-| Gateway IPFS | **8081** | el default de kubo es 8080, demasiado propenso a choque en Android |
+| Gateway IPFS | **8080** | es el default de kubo; decisión explícita del mantenedor de mantenerlo en vez del 8081 propuesto aquí para evitar choques. Configurable por preferencia si algún dispositivo lo tiene ocupado. |
 | API IPFS | **5001** | solo `127.0.0.1`, nunca expuesto a LAN |
 | Swarm | **4001** | TCP+QUIC |
 
@@ -183,7 +183,7 @@ Si no existe el marcador:
    | Clave | Valor | Motivo |
    |---|---|---|
    | `Addresses.API` | `"/ip4/127.0.0.1/tcp/5001"` | API nunca fuera del dispositivo |
-   | `Addresses.Gateway` | `"/ip4/127.0.0.1/tcp/8081"` o `0.0.0.0` si LAN | ver §7.3 |
+   | `Addresses.Gateway` | `"/ip4/127.0.0.1/tcp/8080"` o `0.0.0.0` si LAN | ver §7.3 |
    | `Routing.Type` | `"autoclient"` | no servimos DHT, solo consultamos |
    | `Swarm.ConnMgr.HighWater` | `40` | batería y datos |
    | `Swarm.ConnMgr.LowWater` | `20` | idem |
@@ -242,7 +242,7 @@ proxy.
 ```java
 public static boolean isIpfsEnabled(Context c);
 public static void setIpfsEnabled(Context c, boolean enabled);   // arranca o para
-public static String ipfsGatewayUrl(Context c);                  // http://127.0.0.1:8081
+public static String ipfsGatewayUrl(Context c);                  // http://127.0.0.1:8080
 public static String castIpfsGatewayUrl(Context c);              // IP LAN si procede
 public static boolean isIpfsUrl(String url);
 public static String resolveIpfsUrl(Context c, String url);      // ipfs://CID -> gateway
@@ -257,7 +257,7 @@ En `StreamVaultHapPluginService`:
 
 - `MSG_PREPARE_PLAYBACK`: si la URL entra como `ipfs://<cid>[/ruta]`,
   `ipns://<nombre>` o `/ipfs/<cid>`, devolver
-  `http://127.0.0.1:8081/ipfs/<cid>[/ruta]`. Si IPFS está desactivado o el
+  `http://127.0.0.1:8080/ipfs/<cid>[/ruta]`. Si IPFS está desactivado o el
   daemon no está listo, devolver `handled=false` con mensaje, no una URL rota.
 - `MSG_REWRITE_CAST_URL`: `127.0.0.1` → IP LAN, exactamente como hace
   `rewriteLocalUrlForLan` para el proxy. Requiere gateway en LAN (§7.3).
@@ -394,7 +394,7 @@ Se mantiene la regla de AGENTS.md: nada de nuevos intent-filters de launcher.
 - `IpfsSettings`, `IpfsRuntime`, `IpfsHealthClient`.
 - Enganche en `ProxySupervisorService` con hilo propio; campos en `ServiceState`.
 - Verificación: activar por preferencia a mano, ver `ipfs:` en el log y
-  `curl http://127.0.0.1:8081/ipfs/<CID>` desde adb devolviendo bytes.
+  `curl http://127.0.0.1:8080/ipfs/<CID>` desde adb devolviendo bytes.
 
 ### Fase 2 — UI
 - `buildIpfsPanel()`, strings ES/EN, estado en `HapStatus` y `refreshRuntimeState()`.

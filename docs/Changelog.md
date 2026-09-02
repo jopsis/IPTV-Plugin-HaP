@@ -2,6 +2,25 @@
 
 All notable changes to the StreamVault HaP Plugin will be documented here.
 
+## [1.3.0] - 2026-09-02
+
+### Added
+
+- IPFS panel with a master switch that prepares and runs a bundled kubo
+  (IPFS) daemon per device ABI (`arm64-v8a`, `armeabi-v7a`), independent from
+  the AceServe/HTTPAceProxy runtime supervisor.
+- Local IPFS gateway (default `http://127.0.0.1:8080`) that binds to the LAN
+  when the existing "LAN server" switch is on, mirroring HTTPAceProxy
+  exposure.
+- Advanced IPFS settings: external node mode (host/port of an already-running
+  IPFS node instead of the bundled one), gateway port, and disk storage
+  quota.
+- `tools/fetch-kubo.sh` to build the `libipfs.so` binaries locally (arm64-v8a
+  needs only Go; armeabi-v7a requires the Android NDK for cgo linking); CI
+  builds and caches them before assembling the release APK.
+- `:app:preBuild` Gradle check that fails with a clear message if the IPFS
+  binaries are missing from `jniLibs`.
+
 ## [1.2.2] - 2026-06-28
 
 ### Added

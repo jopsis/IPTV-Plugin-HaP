@@ -34,6 +34,24 @@ jobs:
             "cmake;3.22.1" \
             "ndk;27.0.12077973"
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.27"
+
+      - name: Cache kubo build
+        id: kubo-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            app/src/main/jniLibs/arm64-v8a/libipfs.so
+            app/src/main/jniLibs/armeabi-v7a/libipfs.so
+          key: kubo-${{ runner.os }}-${{ hashFiles('tools/fetch-kubo.sh') }}
+
+      - name: Build IPFS (kubo) binaries
+        if: steps.kubo-cache.outputs.cache-hit != 'true'
+        run: tools/fetch-kubo.sh
+
       - name: Make Gradle executable
         run: chmod +x ./gradlew
 

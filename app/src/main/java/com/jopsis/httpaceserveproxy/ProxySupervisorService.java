@@ -19,6 +19,8 @@ public class ProxySupervisorService extends Service {
     static final String ACTION_STOP = "com.jopsis.httpaceserveproxy.STOP";
     static final String ACTION_RESTART = "com.jopsis.httpaceserveproxy.RESTART";
     static final String ACTION_RESTART_PROXY = "com.jopsis.httpaceserveproxy.RESTART_PROXY";
+    static final String ACTION_START_IPFS = "com.jopsis.httpaceserveproxy.START_IPFS";
+    static final String ACTION_STOP_IPFS = "com.jopsis.httpaceserveproxy.STOP_IPFS";
 
     private static final String CHANNEL_ID = "proxy";
     private static final int NOTIFICATION_ID = 42;
@@ -26,14 +28,18 @@ public class ProxySupervisorService extends Service {
     private static final int ACE_API_PORT = 62062;
 
     private AceServeRuntime aceServe;
+    private IpfsRuntime ipfs;
     private volatile Thread supervisorThread;
     private volatile Thread proxyThread;
     private volatile Thread proxyRestartThread;
+    private volatile Thread ipfsSupervisorThread;
+    private volatile Thread ipfsStopThread;
 
     @Override
     public void onCreate() {
         super.onCreate();
         aceServe = new AceServeRuntime(this);
+        ipfs = new IpfsRuntime(this);
         HttpAceProxyNative.initHttpBridge();
     }
 
@@ -43,9 +49,20 @@ public class ProxySupervisorService extends Service {
         if (ACTION_STOP.equals(action)) {
             startForeground(NOTIFICATION_ID, buildNotification(getString(R.string.status_stopping), false));
             stopAll(true);
+            stopIpfsForShutdown();
             clearNotification();
             stopSelf();
             return START_NOT_STICKY;
+        }
+        if (ACTION_START_IPFS.equals(action)) {
+            startForeground(NOTIFICATION_ID, buildNotification(getString(R.string.status_starting), true));
+            startIpfsAsync();
+            return START_STICKY;
+        }
+        if (ACTION_STOP_IPFS.equals(action)) {
+            startForeground(NOTIFICATION_ID, buildNotification(getString(R.string.status_starting), ServiceState.desiredRunning));
+            stopIpfsAsync();
+            return START_STICKY;
         }
         ServiceState.desiredRunning = true;
         startForeground(NOTIFICATION_ID, buildNotification(getString(R.string.status_starting), true));
@@ -57,6 +74,7 @@ public class ProxySupervisorService extends Service {
             stopAll(false);
         }
         startAll();
+        maybeAutoStartIpfs();
         return START_STICKY;
     }
 
@@ -69,6 +87,7 @@ public class ProxySupervisorService extends Service {
     public void onTaskRemoved(Intent rootIntent) {
         if (!ServiceState.desiredRunning) {
             stopAll(true);
+            stopIpfsForShutdown();
             clearNotification();
             stopSelf();
         }
@@ -78,6 +97,7 @@ public class ProxySupervisorService extends Service {
     @Override
     public void onDestroy() {
         stopAll(true);
+        stopIpfsForShutdown();
         clearNotification();
         super.onDestroy();
     }
@@ -113,6 +133,95 @@ public class ProxySupervisorService extends Service {
             updateNotification(getString(R.string.status_failed));
             stopAll(false);
         }
+    }
+
+    private void maybeAutoStartIpfs() {
+        if (!IpfsSettings.isEnabled(this)) return;
+        if (ServiceState.ipfsRunning) return;
+        startIpfsAsync();
+    }
+
+    private synchronized void startIpfsAsync() {
+        ServiceState.ipfsDesiredRunning = true;
+        if (ipfsSupervisorThread != null && ipfsSupervisorThread.isAlive()) return;
+        ipfsSupervisorThread = new Thread(this::runIpfsSupervisor, "ipfs-supervisor");
+        ipfsSupervisorThread.start();
+    }
+
+    private void runIpfsSupervisor() {
+        if (IpfsSettings.mode(this) == IpfsSettings.Mode.EXTERNAL) {
+            runIpfsExternalSupervisor();
+        } else {
+            runIpfsEmbeddedSupervisor();
+        }
+    }
+
+    private void runIpfsEmbeddedSupervisor() {
+        try {
+            ServiceState.ipfsError("");
+            ServiceState.ipfsPhase("Preparing");
+            ipfs.prepare();
+
+            ServiceState.ipfsPhase("Starting");
+            ipfs.start();
+            boolean ready = waitForIpfsReady();
+            ServiceState.ipfsRunning = ready;
+            if (!ready) throw new IllegalStateException("IPFS daemon did not open its API/gateway ports");
+
+            ServiceState.ipfsPhase("Running");
+        } catch (Exception e) {
+            ServiceState.ipfsError(e.toString());
+            ServiceState.ipfsPhase("Failed");
+            ipfs.stop();
+            ServiceState.ipfsRunning = false;
+        }
+    }
+
+    private void runIpfsExternalSupervisor() {
+        ServiceState.ipfsError("");
+        ServiceState.ipfsPhase("Starting");
+        String host = IpfsSettings.externalHost(this);
+        int port = IpfsSettings.externalPort(this);
+        if (host.isEmpty()) {
+            ServiceState.ipfsError("External IPFS host is not set");
+            ServiceState.ipfsPhase("Failed");
+            ServiceState.ipfsRunning = false;
+            return;
+        }
+        boolean reachable = HealthClient.waitForTcp(host, port, 10000);
+        ServiceState.ipfsRunning = reachable;
+        if (!reachable) {
+            ServiceState.ipfsError("External IPFS node " + host + ":" + port + " is not reachable");
+            ServiceState.ipfsPhase("Failed");
+            return;
+        }
+        ServiceState.ipfsPhase("Running");
+    }
+
+    private boolean waitForIpfsReady() {
+        boolean apiOk = IpfsHealthClient.waitForApi(IpfsSettings.API_HOST, IpfsSettings.API_PORT, 45000);
+        boolean gatewayOk = apiOk
+                && HealthClient.waitForTcp(ProxyExposure.LOCAL_HOST, IpfsSettings.gatewayPort(this), 15000);
+        return apiOk && gatewayOk;
+    }
+
+    private synchronized void stopIpfsAsync() {
+        ServiceState.ipfsDesiredRunning = false;
+        if (ipfsStopThread != null && ipfsStopThread.isAlive()) return;
+        ipfsStopThread = new Thread(() -> {
+            ServiceState.ipfsPhase("Stopping");
+            ipfs.stop();
+            ServiceState.ipfsRunning = false;
+            ServiceState.ipfsPhase("Stopped");
+        }, "ipfs-stop");
+        ipfsStopThread.start();
+    }
+
+    private void stopIpfsForShutdown() {
+        ServiceState.ipfsDesiredRunning = false;
+        if (ipfs != null) ipfs.stop();
+        ServiceState.ipfsRunning = false;
+        ServiceState.ipfsPhase("Stopped");
     }
 
     private synchronized void startProxyRestart() {

@@ -54,6 +54,8 @@ The screen contains:
 - Runtime summary: color-coded runtime state, phase, AIO URL, LAN URL, and
   runtime actions.
 - External players: a persistent server switch for standalone use.
+- IPFS: a local IPFS gateway switch, with an advanced section for external
+  node mode.
 - AIO and LAN server: copyable local/LAN M3U and EPG URLs.
 - Sources: collapsible and collapsed by default.
 - Clients: connected HTTPAceProxy clients.
@@ -78,6 +80,33 @@ When enabled, HaP:
 
 Use the local URL when the IPTV player runs on the same Android device. Use the
 LAN URL when the player runs on another device on the same network.
+
+### IPFS
+
+The IPFS switch starts a bundled `kubo` (IPFS) daemon and its HTTP gateway. It
+does not add `ipfs://`/`ipns://` playback support by itself: add the
+gateway's HTTP URL for a given CID or IPNS name as a regular M3U source in
+Sources instead, for example
+`http://127.0.0.1:8080/ipns/<name>/path/to/list.m3u`.
+
+When enabled, HaP:
+
+- Prepares and starts the bundled kubo binary for the device's ABI
+  (`arm64-v8a` or `armeabi-v7a`).
+- Exposes a local gateway (default `http://127.0.0.1:8080`, configurable under
+  Advanced).
+- Binds the gateway to the LAN when the "LAN server" switch (AIO and LAN
+  server section) is on, so devices on the same network can also reach it.
+
+Advanced options (collapsed by default):
+
+- Use external node: point HaP at an already-running IPFS node's
+  host/port instead of starting the bundled one.
+- Gateway port and disk storage quota for the embedded node.
+
+The `libipfs.so` binaries are not committed to git. Run `tools/fetch-kubo.sh`
+before building (see `IPFS.md` for details); `:app:assembleDebug` fails with a
+clear message if they are missing.
 
 ### Sources
 
@@ -222,7 +251,7 @@ $HOME/Library/Android/sdk/platform-tools/adb install -r app/build/outputs/apk/de
 ```
 
 After installation, refresh StreamVault's Plugins screen. The HaP plugin should
-appear as `HaP`, version `1.2.2`, with `configuration.activity`.
+appear as `HaP`, version `1.3.0`, with `configuration.activity`.
 
 The configuration activity can also be opened directly:
 
