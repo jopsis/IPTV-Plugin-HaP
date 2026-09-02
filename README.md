@@ -1,36 +1,42 @@
-# HaP for StreamVault and External IPTV Players
+# HaP and IPFS for IPTV Players
 
 <p align="center">
-	<a href="https://github.com/jopsis/StreamVault-IPTV-Plugin-HaP/releases/latest/download/StreamVault-HaP-Plugin.apk"><img src="https://img.shields.io/badge/Download-StreamVault--HaP--Plugin.apk-2ea44f?style=for-the-badge&logo=android" alt="Download StreamVault HaP Plugin APK" /></a>
-	<a href="https://github.com/jopsis/StreamVault-IPTV-Plugin-HaP/releases/latest"><img src="https://img.shields.io/github/v/release/jopsis/StreamVault-IPTV-Plugin-HaP?display_name=tag&style=for-the-badge&color=0f766e&cacheSeconds=60" alt="Latest StreamVault HaP Plugin release" /></a>
-	<a href="https://github.com/jopsis/StreamVault-IPTV-Plugin-HaP/releases"><img src="https://img.shields.io/github/downloads/jopsis/StreamVault-IPTV-Plugin-HaP/total?style=for-the-badge&color=8b5cf6&cacheSeconds=60" alt="Total Downloads" /></a>
+	<a href="https://github.com/jopsis/IPTV-Plugin-HaP/releases/latest/download/IPTV-Plugin-HaP.apk"><img src="https://img.shields.io/badge/Download-IPTV--Plugin--HaP.apk-2ea44f?style=for-the-badge&logo=android" alt="Download IPTV Plugin HaP APK" /></a>
+	<a href="https://github.com/jopsis/IPTV-Plugin-HaP/releases/latest"><img src="https://img.shields.io/github/v/release/jopsis/IPTV-Plugin-HaP?display_name=tag&style=for-the-badge&color=0f766e&cacheSeconds=60" alt="Latest HaP release" /></a>
+	<a href="https://github.com/jopsis/IPTV-Plugin-HaP/releases"><img src="https://img.shields.io/github/downloads/jopsis/IPTV-Plugin-HaP/total?style=for-the-badge&color=8b5cf6&cacheSeconds=60" alt="Total Downloads" /></a>
 	<a href="docs/Changelog.md"><img src="https://img.shields.io/badge/Changelog-View-2563eb?style=for-the-badge" alt="View changelog" /></a>
-	<a href="https://github.com/jopsis/StreamVault-IPTV-Plugin-HaP/actions/workflows/build-apk.yml"><img src="https://img.shields.io/github/actions/workflow/status/jopsis/StreamVault-IPTV-Plugin-HaP/build-apk.yml?branch=main&style=for-the-badge&label=CI" alt="GitHub Actions status" /></a>
+	<a href="https://github.com/jopsis/IPTV-Plugin-HaP/actions/workflows/build-apk.yml"><img src="https://img.shields.io/github/actions/workflow/status/jopsis/IPTV-Plugin-HaP/build-apk.yml?branch=main&style=for-the-badge&label=CI" alt="GitHub Actions status" /></a>
 	<a href="https://ko-fi.com/jopsis"><img src="https://img.shields.io/badge/Support%20jopsis-Ko--fi-ff5f5f?style=for-the-badge&logo=kofi" alt="Support jopsis on Ko-fi" /></a>
 	<a href="https://ko-fi.com/yourace"><img src="https://img.shields.io/badge/Support%20yourace%20(AceServe)-Ko--fi-ff5f5f?style=for-the-badge&logo=kofi" alt="Support yourace (AceServe creator) on Ko-fi" /></a>
 </p>
 
-This repository builds HaP as a StreamVault companion plugin APK and standalone
-IPTV player server.
+This repository builds HaP: a standalone Android IPTV player server for
+AceStream and IPFS content, for phones and Android TV.
 
-HaP packages AceServe and HTTPAceProxy behind the StreamVault plugin API and a
-launcher-accessible Android configuration screen. It can publish a local AIO M3U
-provider, prepare AceStream playback, rewrite playback URLs for Google Cast, and
-serve M3U/EPG URLs to external players such as TiviMate, OTT, and other IPTV
-clients.
+HaP packages AceServe and HTTPAceProxy for AceStream, a bundled IPFS gateway,
+and a launcher-accessible native configuration screen. It serves plain
+M3U/EPG URLs that TiviMate, OTT, and other IPTV players can consume directly
+— no other app required.
+
+It can also run as a StreamVault companion plugin, exposing the same
+functionality through StreamVault's plugin API. That integration is one way
+to use HaP, not its primary purpose; see [StreamVault Integration](#streamvault-integration)
+below for the plugin-specific details.
 
 ## Capabilities
 
-The plugin exposes the `com.streamvault.plugin.API` bound service and advertises
-these capabilities:
+HaP works standalone: open the HaP launcher icon (phone or Android TV),
+enable External player server and/or IPFS, then use the local or LAN M3U/EPG
+URLs in TiviMate, OTT, or any other IPTV player.
+
+It can also be installed alongside StreamVault as a companion plugin. When
+present, HaP exposes the `com.streamvault.plugin.API` bound service and
+advertises these capabilities:
 
 - `provider.m3u`: publishes the local HaP `/aio` playlist URL.
 - `playback.prepare`: starts HaP before local HaP playback.
 - `cast.rewriteUrl`: switches HaP to LAN mode and rewrites local URLs for Cast.
 - `configuration.activity`: opens the native HaP configuration activity.
-
-HaP also works standalone. Open the HaP launcher icon, enable External player
-server, then copy the M3U and EPG URLs into an external IPTV player.
 
 HaP uses `configurationMode: "activity"`. StreamVault should open
 `com.streamvault.plugin.hap.CONFIGURE` instead of rendering a host schema. The

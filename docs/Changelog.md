@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the StreamVault HaP Plugin will be documented here.
+All notable changes to HaP will be documented here.
 
 ## [1.3.0] - 2026-09-02
 

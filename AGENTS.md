@@ -2,10 +2,13 @@
 
 ## Project Map
 
-This repository builds the StreamVault HaP companion plugin APK. It packages
-AceServe and HTTPAceProxy behind the StreamVault plugin API, exposes a native
-configuration activity, publishes a local `/aio` M3U provider, prepares local
-HaP playback, and rewrites local URLs for Chromecast/LAN playback.
+This repository builds HaP, a standalone Android IPTV player server (phone
+and Android TV) for AceStream (via AceServe/HTTPAceProxy) and IPFS content.
+It exposes a native configuration activity, publishes a local `/aio` M3U
+provider, prepares local HaP playback, and rewrites local URLs for
+Chromecast/LAN playback. It can also run as a StreamVault companion plugin
+behind the StreamVault plugin API — that integration is one consumer of HaP,
+not its primary purpose.
 
 The graphify map for this project is in `graphify-out/`:
 

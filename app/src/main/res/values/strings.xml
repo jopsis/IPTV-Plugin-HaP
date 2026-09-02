@@ -3,7 +3,7 @@
     <string name="app_name">HaP</string>
     <string name="app_version_format">v%1$s</string>
     <string name="screen_title">HaP</string>
-    <string name="screen_subtitle">AceServe and HTTPAceProxy for StreamVault and external IPTV players</string>
+    <string name="screen_subtitle">AceStream and IPFS for IPTV players — also works as a StreamVault plugin</string>
     <string name="status_idle">Idle</string>
     <string name="status_running">Running</string>
     <string name="status_stopped">Stopped</string>
@@ -159,7 +159,7 @@
     <string name="source_m3u_group_description">User M3U lists and AceStream API endpoints</string>
     <string name="source_custom_label">Custom</string>
     <string name="source_custom_description">Manually added AceStream channels</string>
-    <string name="plugin_description">AceServe and HTTPAceProxy companion for StreamVault and external IPTV players.</string>
+    <string name="plugin_description">AceStream and IPFS IPTV player server, also usable as a StreamVault companion plugin.</string>
     <string name="error_unknown_source">Unknown source.</string>
     <string name="error_custom_managed_in_custom">Custom channels are managed from Custom.</string>
     <string name="error_source_name_empty">The source name is empty.</string>
