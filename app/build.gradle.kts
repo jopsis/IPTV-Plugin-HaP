@@ -34,8 +34,8 @@ android {
         applicationId = "com.streamvault.plugin.hap"
         minSdk = 27
         targetSdk = 36
-        versionCode = 10
-        versionName = "1.2.2"
+        versionCode = 11
+        versionName = "1.3.0"
 
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a")
@@ -77,6 +77,23 @@ android {
 
 dependencies {
     implementation(libs.core.ktx)
+}
+
+tasks.register("checkIpfsBinaries") {
+    doLast {
+        val abis = listOf("arm64-v8a", "armeabi-v7a")
+        val missing = abis.filter { !file("src/main/jniLibs/$it/libipfs.so").exists() }
+        if (missing.isNotEmpty()) {
+            throw GradleException(
+                "Missing IPFS (kubo) binaries for: ${missing.joinToString()}. " +
+                    "Run tools/fetch-kubo.sh from the repo root first (see README.md's IPFS section)."
+            )
+        }
+    }
+}
+
+tasks.named("preBuild") {
+    dependsOn("checkIpfsBinaries")
 }
 
 tasks.register("printVersionName") {

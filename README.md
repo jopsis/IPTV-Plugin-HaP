@@ -1,36 +1,42 @@
-# HaP for StreamVault and External IPTV Players
+# HaP and IPFS for IPTV Players
 
 <p align="center">
-	<a href="https://github.com/jopsis/StreamVault-IPTV-Plugin-HaP/releases/latest/download/StreamVault-HaP-Plugin.apk"><img src="https://img.shields.io/badge/Download-StreamVault--HaP--Plugin.apk-2ea44f?style=for-the-badge&logo=android" alt="Download StreamVault HaP Plugin APK" /></a>
-	<a href="https://github.com/jopsis/StreamVault-IPTV-Plugin-HaP/releases/latest"><img src="https://img.shields.io/github/v/release/jopsis/StreamVault-IPTV-Plugin-HaP?display_name=tag&style=for-the-badge&color=0f766e&cacheSeconds=60" alt="Latest StreamVault HaP Plugin release" /></a>
-	<a href="https://github.com/jopsis/StreamVault-IPTV-Plugin-HaP/releases"><img src="https://img.shields.io/github/downloads/jopsis/StreamVault-IPTV-Plugin-HaP/total?style=for-the-badge&color=8b5cf6&cacheSeconds=60" alt="Total Downloads" /></a>
+	<a href="https://github.com/jopsis/IPTV-Plugin-HaP/releases/latest/download/IPTV-Plugin-HaP.apk"><img src="https://img.shields.io/badge/Download-IPTV--Plugin--HaP.apk-2ea44f?style=for-the-badge&logo=android" alt="Download IPTV Plugin HaP APK" /></a>
+	<a href="https://github.com/jopsis/IPTV-Plugin-HaP/releases/latest"><img src="https://img.shields.io/github/v/release/jopsis/IPTV-Plugin-HaP?display_name=tag&style=for-the-badge&color=0f766e&cacheSeconds=60" alt="Latest HaP release" /></a>
+	<a href="https://github.com/jopsis/IPTV-Plugin-HaP/releases"><img src="https://img.shields.io/github/downloads/jopsis/IPTV-Plugin-HaP/total?style=for-the-badge&color=8b5cf6&cacheSeconds=60" alt="Total Downloads" /></a>
 	<a href="docs/Changelog.md"><img src="https://img.shields.io/badge/Changelog-View-2563eb?style=for-the-badge" alt="View changelog" /></a>
-	<a href="https://github.com/jopsis/StreamVault-IPTV-Plugin-HaP/actions/workflows/build-apk.yml"><img src="https://img.shields.io/github/actions/workflow/status/jopsis/StreamVault-IPTV-Plugin-HaP/build-apk.yml?branch=main&style=for-the-badge&label=CI" alt="GitHub Actions status" /></a>
+	<a href="https://github.com/jopsis/IPTV-Plugin-HaP/actions/workflows/build-apk.yml"><img src="https://img.shields.io/github/actions/workflow/status/jopsis/IPTV-Plugin-HaP/build-apk.yml?branch=main&style=for-the-badge&label=CI" alt="GitHub Actions status" /></a>
 	<a href="https://ko-fi.com/jopsis"><img src="https://img.shields.io/badge/Support%20jopsis-Ko--fi-ff5f5f?style=for-the-badge&logo=kofi" alt="Support jopsis on Ko-fi" /></a>
 	<a href="https://ko-fi.com/yourace"><img src="https://img.shields.io/badge/Support%20yourace%20(AceServe)-Ko--fi-ff5f5f?style=for-the-badge&logo=kofi" alt="Support yourace (AceServe creator) on Ko-fi" /></a>
 </p>
 
-This repository builds HaP as a StreamVault companion plugin APK and standalone
-IPTV player server.
+This repository builds HaP: a standalone Android IPTV player server for
+AceStream and IPFS content, for phones and Android TV.
 
-HaP packages AceServe and HTTPAceProxy behind the StreamVault plugin API and a
-launcher-accessible Android configuration screen. It can publish a local AIO M3U
-provider, prepare AceStream playback, rewrite playback URLs for Google Cast, and
-serve M3U/EPG URLs to external players such as TiviMate, OTT, and other IPTV
-clients.
+HaP packages AceServe and HTTPAceProxy for AceStream, a bundled IPFS gateway,
+and a launcher-accessible native configuration screen. It serves plain
+M3U/EPG URLs that TiviMate, OTT, and other IPTV players can consume directly
+— no other app required.
+
+It can also run as a StreamVault companion plugin, exposing the same
+functionality through StreamVault's plugin API. That integration is one way
+to use HaP, not its primary purpose; see [StreamVault Integration](#streamvault-integration)
+below for the plugin-specific details.
 
 ## Capabilities
 
-The plugin exposes the `com.streamvault.plugin.API` bound service and advertises
-these capabilities:
+HaP works standalone: open the HaP launcher icon (phone or Android TV),
+enable External player server and/or IPFS, then use the local or LAN M3U/EPG
+URLs in TiviMate, OTT, or any other IPTV player.
+
+It can also be installed alongside StreamVault as a companion plugin. When
+present, HaP exposes the `com.streamvault.plugin.API` bound service and
+advertises these capabilities:
 
 - `provider.m3u`: publishes the local HaP `/aio` playlist URL.
 - `playback.prepare`: starts HaP before local HaP playback.
 - `cast.rewriteUrl`: switches HaP to LAN mode and rewrites local URLs for Cast.
 - `configuration.activity`: opens the native HaP configuration activity.
-
-HaP also works standalone. Open the HaP launcher icon, enable External player
-server, then copy the M3U and EPG URLs into an external IPTV player.
 
 HaP uses `configurationMode: "activity"`. StreamVault should open
 `com.streamvault.plugin.hap.CONFIGURE` instead of rendering a host schema. The
@@ -54,6 +60,8 @@ The screen contains:
 - Runtime summary: color-coded runtime state, phase, AIO URL, LAN URL, and
   runtime actions.
 - External players: a persistent server switch for standalone use.
+- IPFS: a local IPFS gateway switch, with an advanced section for external
+  node mode.
 - AIO and LAN server: copyable local/LAN M3U and EPG URLs.
 - Sources: collapsible and collapsed by default.
 - Clients: connected HTTPAceProxy clients.
@@ -78,6 +86,43 @@ When enabled, HaP:
 
 Use the local URL when the IPTV player runs on the same Android device. Use the
 LAN URL when the player runs on another device on the same network.
+
+### IPFS
+
+The IPFS switch starts a bundled `kubo` (IPFS) daemon and its HTTP gateway. It
+does not add `ipfs://`/`ipns://` playback support by itself: add the
+gateway's HTTP URL for a given CID or IPNS name as a regular M3U source in
+Sources instead, for example
+`http://127.0.0.1:8080/ipns/<name>/path/to/list.m3u`.
+
+When enabled, HaP:
+
+- Prepares and starts the bundled kubo binary for the device's ABI
+  (`arm64-v8a` or `armeabi-v7a`), using kubo's `lowpower` profile (no
+  reprovide, limited connection manager) since the node only consumes
+  content.
+- Exposes a local gateway (default `http://127.0.0.1:8080`, configurable
+  under Advanced).
+- Keeps the RPC API on `127.0.0.1:5001` and the libp2p swarm on `4001`,
+  regardless of LAN mode — only the gateway is ever exposed to the network.
+- Binds the gateway to the LAN when the "LAN server" switch (AIO and LAN
+  server section) is on, so devices on the same network can also reach it.
+
+Advanced options (collapsed by default):
+
+- Use external node: point HaP at an already-running IPFS node's
+  host/port instead of starting the bundled one (a Termux `ipfs daemon`, a
+  NAS, a PC on the same LAN, etc.).
+- Gateway port and disk storage quota (`Datastore.StorageMax`) for the
+  embedded node.
+
+The `libipfs.so` binaries are not committed to git — building them requires
+compiling kubo from source, which is too heavy to check in and update on
+every kubo release. Run `tools/fetch-kubo.sh` before building; it fetches
+kubo, and needs only Go for `arm64-v8a` (no cgo) but the Android NDK for
+`armeabi-v7a` (`android/arm` requires cgo linking, enforced by the Go
+toolchain itself). `:app:preBuild` fails with a clear message if the
+binaries are missing from `app/src/main/jniLibs/`.
 
 ### Sources
 
@@ -198,6 +243,13 @@ experience is native, so the Activity is the source of truth.
 
 ## Build
 
+Build the bundled IPFS (kubo) binaries once before the first Gradle build (see
+[IPFS](#ipfs) below for what this needs):
+
+```sh
+tools/fetch-kubo.sh
+```
+
 Use the Android SDK and a Java runtime compatible with the Android Gradle
 plugin:
 
@@ -222,7 +274,7 @@ $HOME/Library/Android/sdk/platform-tools/adb install -r app/build/outputs/apk/de
 ```
 
 After installation, refresh StreamVault's Plugins screen. The HaP plugin should
-appear as `HaP`, version `1.2.2`, with `configuration.activity`.
+appear as `HaP`, version `1.3.0`, with `configuration.activity`.
 
 The configuration activity can also be opened directly:
 
@@ -252,6 +304,9 @@ Recommended smoke test:
 - Open HaP from the launcher and from StreamVault's Plugins screen.
 - Enable External player server and confirm M3U/EPG URLs are shown for local and
   LAN playback.
+- Enable IPFS and confirm the status pill reaches Online and the gateway URL
+  serves a known CID (`curl http://127.0.0.1:8080/ipfs/<CID>` via `adb
+  forward`).
 - Confirm Sources and Channel status start collapsed.
 - Add a real M3U AceStream list.
 - Load channel lists, run Test list, then click a channel row to test only that

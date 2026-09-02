@@ -82,6 +82,17 @@ public class HapConfigActivity extends Activity {
     private Switch enabledSwitch;
     private Switch externalServerSwitch;
     private Switch lanSwitch;
+    private Switch ipfsSwitch;
+    private TextView ipfsStatePill;
+    private TextView ipfsErrorView;
+    private LinearLayout ipfsGatewayContainer;
+    private Switch ipfsExternalSwitch;
+    private LinearLayout ipfsExternalFieldsContainer;
+    private EditText ipfsExternalHostEdit;
+    private EditText ipfsExternalPortEdit;
+    private EditText ipfsGatewayPortEdit;
+    private EditText ipfsStorageMaxEdit;
+    private TextView ipfsAdvancedFeedbackView;
     private EditText sourceNameEdit;
     private EditText sourceUrlEdit;
     private TextView sourceFeedbackView;
@@ -115,6 +126,7 @@ public class HapConfigActivity extends Activity {
         setContentView(buildLayout());
         refreshConfigState();
         refreshRuntimeState();
+        populateIpfsAdvancedFields();
     }
 
     @Override
@@ -169,6 +181,7 @@ public class HapConfigActivity extends Activity {
 
         root.addView(buildHeaderPanel(), matchWrap());
         root.addView(buildExternalPlayersPanel(), matchWrapTop(12));
+        root.addView(buildIpfsPanel(), matchWrapTop(12));
         root.addView(buildAioPanel(), matchWrapTop(12));
         root.addView(buildSourcesPanel(), matchWrapTop(12));
         root.addView(buildClientsPanel(), matchWrapTop(12));
@@ -294,6 +307,138 @@ public class HapConfigActivity extends Activity {
         row.addView(externalServerSwitch, wrapWrap());
 
         return panel.container;
+    }
+
+    private View buildIpfsPanel() {
+        PanelViews panel = panel(getString(R.string.section_ipfs), false, true);
+
+        TextView hint = text(getString(R.string.message_ipfs_detail), 13, COLOR_TEXT_SECONDARY, Typeface.NORMAL);
+        hint.setPadding(0, 0, 0, dp(10));
+        panel.body.addView(hint, matchWrap());
+
+        LinearLayout switchRow = new LinearLayout(this);
+        switchRow.setOrientation(LinearLayout.HORIZONTAL);
+        switchRow.setGravity(Gravity.CENTER_VERTICAL);
+        panel.body.addView(switchRow, matchWrap());
+
+        LinearLayout switchLeft = new LinearLayout(this);
+        switchLeft.setOrientation(LinearLayout.VERTICAL);
+        switchRow.addView(switchLeft, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        LinearLayout titleRow = new LinearLayout(this);
+        titleRow.setOrientation(LinearLayout.HORIZONTAL);
+        titleRow.setGravity(Gravity.CENTER_VERTICAL);
+        switchLeft.addView(titleRow, matchWrap());
+        titleRow.addView(text(getString(R.string.label_ipfs_enable), 14, COLOR_TEXT_PRIMARY, Typeface.BOLD));
+        ipfsStatePill = pill(getString(R.string.status_ipfs_offline), COLOR_ERROR_MUTED, COLOR_ERROR);
+        titleRow.addView(ipfsStatePill, wrapWrapLeft(10));
+
+        ipfsErrorView = text("", 12, COLOR_ERROR, Typeface.NORMAL);
+        ipfsErrorView.setPadding(0, dp(4), 0, 0);
+        ipfsErrorView.setVisibility(View.GONE);
+        switchLeft.addView(ipfsErrorView, matchWrap());
+
+        ipfsSwitch = new Switch(this);
+        ipfsSwitch.setPadding(dp(10), 0, 0, 0);
+        ipfsSwitch.setOnCheckedChangeListener((buttonView, checked) -> {
+            if (suppressSwitchCallbacks) return;
+            setIpfsEnabled(checked);
+        });
+        busyControls.add(ipfsSwitch);
+        switchRow.addView(ipfsSwitch, wrapWrap());
+
+        ipfsGatewayContainer = new LinearLayout(this);
+        ipfsGatewayContainer.setOrientation(LinearLayout.VERTICAL);
+        ipfsGatewayContainer.setPadding(0, dp(8), 0, 0);
+        panel.body.addView(ipfsGatewayContainer, matchWrap());
+
+        panel.body.addView(buildIpfsAdvancedSection(), matchWrapTop(12));
+
+        return panel.container;
+    }
+
+    private View buildIpfsAdvancedSection() {
+        LinearLayout container = new LinearLayout(this);
+        container.setOrientation(LinearLayout.VERTICAL);
+
+        String title = getString(R.string.label_ipfs_advanced);
+        TextView header = text("+ " + title, 13, COLOR_TEXT_SECONDARY, Typeface.BOLD);
+        header.setFocusable(true);
+        header.setBackground(focusBackground(0x00000000, COLOR_SURFACE_FOCUSED, dp(8), 0, 0));
+        header.setPadding(dp(8), dp(8), dp(8), dp(8));
+        container.addView(header, matchWrap());
+
+        LinearLayout body = new LinearLayout(this);
+        body.setOrientation(LinearLayout.VERTICAL);
+        body.setBackground(roundRect(COLOR_PANEL_SOFT, dp(10), 0, 0));
+        body.setPadding(dp(12), dp(12), dp(12), dp(12));
+        body.setVisibility(View.GONE);
+        LinearLayout.LayoutParams bodyParams = matchWrap();
+        bodyParams.topMargin = dp(6);
+        container.addView(body, bodyParams);
+
+        header.setOnClickListener(v -> {
+            boolean expanded = body.getVisibility() == View.VISIBLE;
+            body.setVisibility(expanded ? View.GONE : View.VISIBLE);
+            header.setText((expanded ? "+ " : "- ") + title);
+        });
+
+        LinearLayout externalRow = new LinearLayout(this);
+        externalRow.setOrientation(LinearLayout.HORIZONTAL);
+        externalRow.setGravity(Gravity.CENTER_VERTICAL);
+        body.addView(externalRow, matchWrap());
+
+        externalRow.addView(text(getString(R.string.label_ipfs_external_mode), 13, COLOR_TEXT_PRIMARY, Typeface.BOLD),
+                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        ipfsExternalSwitch = new Switch(this);
+        ipfsExternalSwitch.setOnCheckedChangeListener((buttonView, checked) ->
+                ipfsExternalFieldsContainer.setVisibility(checked ? View.VISIBLE : View.GONE));
+        busyControls.add(ipfsExternalSwitch);
+        externalRow.addView(ipfsExternalSwitch, wrapWrap());
+
+        ipfsExternalFieldsContainer = new LinearLayout(this);
+        ipfsExternalFieldsContainer.setOrientation(LinearLayout.VERTICAL);
+        ipfsExternalFieldsContainer.setVisibility(View.GONE);
+        ipfsExternalFieldsContainer.setPadding(0, dp(8), 0, 0);
+        body.addView(ipfsExternalFieldsContainer, matchWrap());
+
+        ipfsExternalHostEdit = editText(getString(R.string.label_ipfs_external_host), false);
+        ipfsExternalFieldsContainer.addView(ipfsExternalHostEdit, matchWrap());
+        ipfsExternalPortEdit = editText(getString(R.string.label_ipfs_external_port), false);
+        ipfsExternalPortEdit.setInputType(InputType.TYPE_CLASS_NUMBER);
+        ipfsExternalFieldsContainer.addView(ipfsExternalPortEdit, matchWrapTop(8));
+
+        LinearLayout embeddedRow = new LinearLayout(this);
+        embeddedRow.setOrientation(LinearLayout.HORIZONTAL);
+        embeddedRow.setPadding(0, dp(10), 0, 0);
+        body.addView(embeddedRow, matchWrap());
+
+        ipfsGatewayPortEdit = editText(getString(R.string.label_ipfs_gateway_port), false);
+        ipfsGatewayPortEdit.setInputType(InputType.TYPE_CLASS_NUMBER);
+        embeddedRow.addView(ipfsGatewayPortEdit, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        ipfsStorageMaxEdit = editText(getString(R.string.label_ipfs_storage_max), false);
+        ipfsStorageMaxEdit.setInputType(InputType.TYPE_CLASS_NUMBER);
+        LinearLayout.LayoutParams storageParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        storageParams.leftMargin = dp(10);
+        embeddedRow.addView(ipfsStorageMaxEdit, storageParams);
+
+        LinearLayout saveRow = new LinearLayout(this);
+        saveRow.setOrientation(LinearLayout.HORIZONTAL);
+        saveRow.setGravity(Gravity.RIGHT);
+        saveRow.setPadding(0, dp(10), 0, 0);
+        body.addView(saveRow, matchWrap());
+
+        Button save = button(getString(R.string.button_save));
+        save.setOnClickListener(v -> saveIpfsAdvancedSettings());
+        saveRow.addView(save, wrapWrap());
+
+        ipfsAdvancedFeedbackView = text("", 13, COLOR_TEXT_SECONDARY, Typeface.NORMAL);
+        ipfsAdvancedFeedbackView.setPadding(0, dp(8), 0, 0);
+        ipfsAdvancedFeedbackView.setVisibility(View.GONE);
+        body.addView(ipfsAdvancedFeedbackView, matchWrap());
+
+        return container;
     }
 
     private View buildAioPanel() {
@@ -580,10 +725,36 @@ public class HapConfigActivity extends Activity {
         enabledSwitch.setChecked(status.desiredRunning);
         externalServerSwitch.setChecked(status.externalPlayerServerEnabled);
         lanSwitch.setChecked(status.serverModeEnabled);
+        ipfsSwitch.setChecked(status.ipfsEnabled);
         suppressSwitchCallbacks = false;
+
+        RuntimeBadge ipfsBadge = ipfsBadge(status);
+        ipfsStatePill.setText(ipfsBadge.label);
+        ipfsStatePill.setTextColor(ipfsBadge.contentColor);
+        ipfsStatePill.setBackground(roundRect(ipfsBadge.containerColor, dp(999), 0, 0));
+        if (status.ipfsError.isEmpty()) {
+            ipfsErrorView.setVisibility(View.GONE);
+        } else {
+            ipfsErrorView.setText(status.ipfsError);
+            ipfsErrorView.setVisibility(View.VISIBLE);
+        }
+        renderIpfsGateway(status);
 
         renderEndpoints(status);
         renderLogs(status);
+    }
+
+    private RuntimeBadge ipfsBadge(HapBridge.HapStatus status) {
+        if (!status.ipfsError.isEmpty()) {
+            return new RuntimeBadge(getString(R.string.status_ipfs_failed), COLOR_ERROR_MUTED, COLOR_ERROR);
+        }
+        if (status.ipfsRunning) {
+            return new RuntimeBadge(getString(R.string.status_ipfs_online), COLOR_SUCCESS_MUTED, COLOR_SUCCESS);
+        }
+        if (status.ipfsEnabled) {
+            return new RuntimeBadge(getString(R.string.status_ipfs_starting), COLOR_WARNING_MUTED, COLOR_WARNING);
+        }
+        return new RuntimeBadge(getString(R.string.status_ipfs_offline), COLOR_ERROR_MUTED, COLOR_ERROR);
     }
 
     private void refreshConfigState() {
@@ -954,6 +1125,87 @@ public class HapConfigActivity extends Activity {
             HapBridge.setServerModeEnabled(this, enabled);
             return enabled ? getString(R.string.message_lan_enabled) : getString(R.string.message_lan_disabled);
         }, this::refreshConfigState);
+    }
+
+    private void setIpfsEnabled(boolean enabled) {
+        runBusy(
+                enabled ? getString(R.string.message_enabling_ipfs) : getString(R.string.message_disabling_ipfs),
+                () -> {
+                    HapBridge.setIpfsEnabled(this, enabled);
+                    return enabled ? getString(R.string.message_ipfs_enabled) : getString(R.string.message_ipfs_disabled);
+                },
+                null
+        );
+    }
+
+    private void saveIpfsAdvancedSettings() {
+        boolean external = ipfsExternalSwitch.isChecked();
+        String host = ipfsExternalHostEdit.getText().toString();
+        int externalPort = parseIntOrDefault(ipfsExternalPortEdit.getText().toString(), 8080);
+        int gatewayPort = parseIntOrDefault(ipfsGatewayPortEdit.getText().toString(), 8080);
+        int storageMaxGb = parseIntOrDefault(ipfsStorageMaxEdit.getText().toString(), 2);
+        showIpfsAdvancedFeedback(getString(R.string.message_saving_ipfs_settings), COLOR_BRAND);
+        setBusy(true);
+        executor.execute(() -> {
+            HapBridge.SaveResult result = HapBridge.saveIpfsAdvancedSettings(this, external, host, externalPort, gatewayPort, storageMaxGb);
+            main(() -> {
+                setBusy(false);
+                showIpfsAdvancedFeedback(result.message, result.success ? COLOR_SUCCESS : COLOR_ERROR);
+                refreshRuntimeState();
+            });
+        });
+    }
+
+    private void populateIpfsAdvancedFields() {
+        boolean external = HapBridge.isIpfsExternalMode(this);
+        ipfsExternalSwitch.setChecked(external);
+        ipfsExternalFieldsContainer.setVisibility(external ? View.VISIBLE : View.GONE);
+        ipfsExternalHostEdit.setText(HapBridge.ipfsExternalHost(this));
+        ipfsExternalPortEdit.setText(String.valueOf(HapBridge.ipfsExternalPort(this)));
+        ipfsGatewayPortEdit.setText(String.valueOf(HapBridge.ipfsGatewayPort(this)));
+        ipfsStorageMaxEdit.setText(String.valueOf(HapBridge.ipfsStorageMaxGb(this)));
+    }
+
+    private void showIpfsAdvancedFeedback(String message, int color) {
+        if (ipfsAdvancedFeedbackView == null) return;
+        if (message == null || message.trim().isEmpty()) {
+            ipfsAdvancedFeedbackView.setVisibility(View.GONE);
+            return;
+        }
+        ipfsAdvancedFeedbackView.setTextColor(color);
+        ipfsAdvancedFeedbackView.setText(message);
+        ipfsAdvancedFeedbackView.setVisibility(View.VISIBLE);
+    }
+
+    private int parseIntOrDefault(String value, int fallback) {
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (Exception ignored) {
+            return fallback;
+        }
+    }
+
+    private void renderIpfsGateway(HapBridge.HapStatus status) {
+        ipfsGatewayContainer.removeAllViews();
+        if (status.ipfsGatewayUrl.isEmpty()) return;
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+
+        row.addView(pill(getString(R.string.label_ipfs_gateway_url), COLOR_SURFACE, COLOR_TEXT_SECONDARY), wrapWrap());
+
+        TextView value = text(status.ipfsGatewayUrl, 13, COLOR_TEXT_SECONDARY, Typeface.NORMAL);
+        value.setSingleLine(true);
+        value.setEllipsize(TextUtils.TruncateAt.MIDDLE);
+        value.setPadding(dp(8), 0, dp(8), 0);
+        row.addView(value, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        Button copy = smallButton(getString(R.string.button_copy));
+        copy.setOnClickListener(v -> copyToClipboard("HaP IPFS gateway", status.ipfsGatewayUrl));
+        row.addView(copy, wrapWrap());
+
+        ipfsGatewayContainer.addView(row, matchWrap());
     }
 
     private void setSourceSelected(String sourceId, boolean selected) {

@@ -34,6 +34,24 @@ jobs:
             "cmake;3.22.1" \
             "ndk;27.0.12077973"
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.27"
+
+      - name: Cache kubo build
+        id: kubo-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            app/src/main/jniLibs/arm64-v8a/libipfs.so
+            app/src/main/jniLibs/armeabi-v7a/libipfs.so
+          key: kubo-${{ runner.os }}-${{ hashFiles('tools/fetch-kubo.sh') }}
+
+      - name: Build IPFS (kubo) binaries
+        if: steps.kubo-cache.outputs.cache-hit != 'true'
+        run: tools/fetch-kubo.sh
+
       - name: Make Gradle executable
         run: chmod +x ./gradlew
 
@@ -125,8 +143,8 @@ jobs:
         id: artifact
         run: |
           mkdir -p dist
-          VERSIONED_APK_FILE="dist/StreamVault-HaP-Plugin-${{ steps.version.outputs.version_name }}.apk"
-          LATEST_APK_FILE="dist/StreamVault-HaP-Plugin.apk"
+          VERSIONED_APK_FILE="dist/IPTV-Plugin-HaP-${{ steps.version.outputs.version_name }}.apk"
+          LATEST_APK_FILE="dist/IPTV-Plugin-HaP.apk"
           cp app/build/outputs/apk/release/app-release.apk "$VERSIONED_APK_FILE"
           cp app/build/outputs/apk/release/app-release.apk "$LATEST_APK_FILE"
           echo "versioned_apk_file=$VERSIONED_APK_FILE" >> "$GITHUB_OUTPUT"
@@ -135,7 +153,7 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: StreamVault-HaP-Plugin-${{ steps.version.outputs.version_name }}
+          name: IPTV-Plugin-HaP-${{ steps.version.outputs.version_name }}
           path: dist/*.apk
           if-no-files-found: error
 

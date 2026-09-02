@@ -14,6 +14,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "StreamVaultHaPPlugin"
+rootProject.name = "IPTVPluginHaP"
 
 include(":app")

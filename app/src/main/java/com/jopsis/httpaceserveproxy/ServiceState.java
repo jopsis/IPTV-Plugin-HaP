@@ -8,6 +8,11 @@ final class ServiceState {
     static volatile String lastError = "";
     static volatile long lastUpdateMillis;
 
+    static volatile boolean ipfsDesiredRunning;
+    static volatile boolean ipfsRunning;
+    static volatile String ipfsPhase = "Stopped";
+    static volatile String ipfsLastError = "";
+
     private static final StringBuilder LOG = new StringBuilder();
 
     private ServiceState() {
@@ -23,6 +28,18 @@ final class ServiceState {
         lastError = value == null ? "" : value;
         lastUpdateMillis = System.currentTimeMillis();
         appendLog("error: " + lastError);
+    }
+
+    static synchronized void ipfsPhase(String value) {
+        ipfsPhase = value;
+        lastUpdateMillis = System.currentTimeMillis();
+        appendLog("ipfs phase: " + value);
+    }
+
+    static synchronized void ipfsError(String value) {
+        ipfsLastError = value == null ? "" : value;
+        lastUpdateMillis = System.currentTimeMillis();
+        appendLog("ipfs error: " + ipfsLastError);
     }
 
     static synchronized void appendLog(String value) {

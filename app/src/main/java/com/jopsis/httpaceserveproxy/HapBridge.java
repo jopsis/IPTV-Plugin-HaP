@@ -60,7 +60,12 @@ public final class HapBridge {
                 ProxyExposure.isServerModeEnabled(context),
                 ProxyExposure.isExternalPlayerServerEnabled(context),
                 endpoints(context),
-                ServiceState.log()
+                ServiceState.log(),
+                IpfsSettings.isEnabled(context),
+                ServiceState.ipfsRunning,
+                ServiceState.ipfsPhase,
+                ServiceState.ipfsLastError,
+                IpfsSettings.gatewayUrl(context)
         );
     }
 
@@ -79,6 +84,83 @@ public final class HapBridge {
 
     public static boolean isExternalPlayerServerEnabled(Context context) {
         return ProxyExposure.isExternalPlayerServerEnabled(context);
+    }
+
+    public static boolean isIpfsEnabled(Context context) {
+        return IpfsSettings.isEnabled(context);
+    }
+
+    public static void setIpfsEnabled(Context context, boolean enabled) {
+        IpfsSettings.setEnabled(context, enabled);
+        serviceAction(context, enabled ? ProxySupervisorService.ACTION_START_IPFS : ProxySupervisorService.ACTION_STOP_IPFS);
+    }
+
+    public static boolean isIpfsExternalMode(Context context) {
+        return IpfsSettings.mode(context) == IpfsSettings.Mode.EXTERNAL;
+    }
+
+    public static void setIpfsExternalMode(Context context, boolean external) {
+        IpfsSettings.setMode(context, external ? IpfsSettings.Mode.EXTERNAL : IpfsSettings.Mode.EMBEDDED);
+    }
+
+    public static String ipfsExternalHost(Context context) {
+        return IpfsSettings.externalHost(context);
+    }
+
+    public static int ipfsExternalPort(Context context) {
+        return IpfsSettings.externalPort(context);
+    }
+
+    public static void setIpfsExternalEndpoint(Context context, String host, int port) {
+        IpfsSettings.setExternalHost(context, host);
+        IpfsSettings.setExternalPort(context, port);
+    }
+
+    public static int ipfsGatewayPort(Context context) {
+        return IpfsSettings.gatewayPort(context);
+    }
+
+    public static void setIpfsGatewayPort(Context context, int port) {
+        IpfsSettings.setGatewayPort(context, port);
+    }
+
+    public static int ipfsStorageMaxGb(Context context) {
+        return IpfsSettings.storageMaxGb(context);
+    }
+
+    public static void setIpfsStorageMaxGb(Context context, int gigabytes) {
+        IpfsSettings.setStorageMaxGb(context, gigabytes);
+    }
+
+    public static String ipfsGatewayUrl(Context context) {
+        return IpfsSettings.gatewayUrl(context);
+    }
+
+    public static String castIpfsGatewayUrl(Context context) {
+        return IpfsSettings.castGatewayUrl(context);
+    }
+
+    public static SaveResult saveIpfsAdvancedSettings(
+            Context context, boolean externalMode, String externalHost, int externalPort, int gatewayPort, int storageMaxGb) {
+        if (externalMode && externalHost.trim().isEmpty()) {
+            return new SaveResult(false, context.getString(R.string.error_ipfs_external_host_empty));
+        }
+        if (gatewayPort < 1 || gatewayPort > 65535 || externalPort < 1 || externalPort > 65535) {
+            return new SaveResult(false, context.getString(R.string.error_ipfs_port_invalid));
+        }
+        if (storageMaxGb < 1) {
+            return new SaveResult(false, context.getString(R.string.error_ipfs_storage_invalid));
+        }
+        IpfsSettings.setMode(context, externalMode ? IpfsSettings.Mode.EXTERNAL : IpfsSettings.Mode.EMBEDDED);
+        IpfsSettings.setExternalHost(context, externalHost);
+        IpfsSettings.setExternalPort(context, externalPort);
+        IpfsSettings.setGatewayPort(context, gatewayPort);
+        IpfsSettings.setStorageMaxGb(context, storageMaxGb);
+        if (IpfsSettings.isEnabled(context)) {
+            serviceAction(context, ProxySupervisorService.ACTION_STOP_IPFS);
+            serviceAction(context, ProxySupervisorService.ACTION_START_IPFS);
+        }
+        return new SaveResult(true, context.getString(R.string.message_ipfs_settings_saved));
     }
 
     public static void setExternalPlayerServerEnabled(Context context, boolean enabled) {
@@ -293,6 +375,11 @@ public final class HapBridge {
         public final boolean externalPlayerServerEnabled;
         public final List<EndpointInfo> endpoints;
         public final String log;
+        public final boolean ipfsEnabled;
+        public final boolean ipfsRunning;
+        public final String ipfsPhase;
+        public final String ipfsError;
+        public final String ipfsGatewayUrl;
 
         HapStatus(
                 boolean desiredRunning,
@@ -304,7 +391,12 @@ public final class HapBridge {
                 boolean serverModeEnabled,
                 boolean externalPlayerServerEnabled,
                 List<EndpointInfo> endpoints,
-                String log
+                String log,
+                boolean ipfsEnabled,
+                boolean ipfsRunning,
+                String ipfsPhase,
+                String ipfsError,
+                String ipfsGatewayUrl
         ) {
             this.desiredRunning = desiredRunning;
             this.aceRunning = aceRunning;
@@ -316,6 +408,11 @@ public final class HapBridge {
             this.externalPlayerServerEnabled = externalPlayerServerEnabled;
             this.endpoints = endpoints;
             this.log = log == null ? "" : log;
+            this.ipfsEnabled = ipfsEnabled;
+            this.ipfsRunning = ipfsRunning;
+            this.ipfsPhase = ipfsPhase == null ? "" : ipfsPhase;
+            this.ipfsError = ipfsError == null ? "" : ipfsError;
+            this.ipfsGatewayUrl = ipfsGatewayUrl == null ? "" : ipfsGatewayUrl;
         }
     }
 
