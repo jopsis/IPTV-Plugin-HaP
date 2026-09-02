@@ -92,21 +92,31 @@ Sources instead, for example
 When enabled, HaP:
 
 - Prepares and starts the bundled kubo binary for the device's ABI
-  (`arm64-v8a` or `armeabi-v7a`).
-- Exposes a local gateway (default `http://127.0.0.1:8080`, configurable under
-  Advanced).
+  (`arm64-v8a` or `armeabi-v7a`), using kubo's `lowpower` profile (no
+  reprovide, limited connection manager) since the node only consumes
+  content.
+- Exposes a local gateway (default `http://127.0.0.1:8080`, configurable
+  under Advanced).
+- Keeps the RPC API on `127.0.0.1:5001` and the libp2p swarm on `4001`,
+  regardless of LAN mode — only the gateway is ever exposed to the network.
 - Binds the gateway to the LAN when the "LAN server" switch (AIO and LAN
   server section) is on, so devices on the same network can also reach it.
 
 Advanced options (collapsed by default):
 
 - Use external node: point HaP at an already-running IPFS node's
-  host/port instead of starting the bundled one.
-- Gateway port and disk storage quota for the embedded node.
+  host/port instead of starting the bundled one (a Termux `ipfs daemon`, a
+  NAS, a PC on the same LAN, etc.).
+- Gateway port and disk storage quota (`Datastore.StorageMax`) for the
+  embedded node.
 
-The `libipfs.so` binaries are not committed to git. Run `tools/fetch-kubo.sh`
-before building (see `IPFS.md` for details); `:app:assembleDebug` fails with a
-clear message if they are missing.
+The `libipfs.so` binaries are not committed to git — building them requires
+compiling kubo from source, which is too heavy to check in and update on
+every kubo release. Run `tools/fetch-kubo.sh` before building; it fetches
+kubo, and needs only Go for `arm64-v8a` (no cgo) but the Android NDK for
+`armeabi-v7a` (`android/arm` requires cgo linking, enforced by the Go
+toolchain itself). `:app:preBuild` fails with a clear message if the
+binaries are missing from `app/src/main/jniLibs/`.
 
 ### Sources
 
@@ -227,6 +237,13 @@ experience is native, so the Activity is the source of truth.
 
 ## Build
 
+Build the bundled IPFS (kubo) binaries once before the first Gradle build (see
+[IPFS](#ipfs) below for what this needs):
+
+```sh
+tools/fetch-kubo.sh
+```
+
 Use the Android SDK and a Java runtime compatible with the Android Gradle
 plugin:
 
@@ -281,6 +298,9 @@ Recommended smoke test:
 - Open HaP from the launcher and from StreamVault's Plugins screen.
 - Enable External player server and confirm M3U/EPG URLs are shown for local and
   LAN playback.
+- Enable IPFS and confirm the status pill reaches Online and the gateway URL
+  serves a known CID (`curl http://127.0.0.1:8080/ipfs/<CID>` via `adb
+  forward`).
 - Confirm Sources and Channel status start collapsed.
 - Add a real M3U AceStream list.
 - Load channel lists, run Test list, then click a channel row to test only that

@@ -86,7 +86,7 @@ tasks.register("checkIpfsBinaries") {
         if (missing.isNotEmpty()) {
             throw GradleException(
                 "Missing IPFS (kubo) binaries for: ${missing.joinToString()}. " +
-                    "Run tools/fetch-kubo.sh from the repo root first (see IPFS.md)."
+                    "Run tools/fetch-kubo.sh from the repo root first (see README.md's IPFS section)."
             )
         }
     }
