@@ -43,6 +43,27 @@ public final class HapBridge {
         if (ServiceState.desiredRunning) restartProxy(context);
     }
 
+    /**
+     * Applies a proxy configuration change with a single service action.
+     *
+     * <p>A stopped service picks the new settings up when it starts, so a plain start is
+     * enough. A running service only needs the proxy rebound, and only when the change
+     * actually affects it. Sending both a restart and a start would run the proxy-restart
+     * thread against a fresh supervisor thread, which stop and start the proxy at the same
+     * time.
+     *
+     * @param proxyConfigChanged whether the change alters how the proxy listens or serves.
+     */
+    private static void applyProxyConfigChange(Context context, boolean proxyConfigChanged) {
+        if (!ServiceState.desiredRunning) {
+            start(context);
+        } else if (proxyConfigChanged) {
+            restartProxy(context);
+        } else if (!ServiceState.proxyRunning) {
+            start(context);
+        }
+    }
+
     private static void serviceAction(Context context, String action) {
         Intent intent = new Intent(context.getApplicationContext(), ProxySupervisorService.class)
                 .setAction(action);
@@ -169,11 +190,13 @@ public final class HapBridge {
 
     public static void enableExternalPlayerServer(Context context) {
         ProxyExposure.setExternalPlayerServerEnabled(context, true);
-        if (!ProxyExposure.isServerModeEnabled(context)) {
-            ProxyExposure.setServerModeEnabled(context, true);
-            restartProxyIfRunning(context);
-        }
-        start(context);
+        enableServerModeAndStart(context);
+    }
+
+    public static void enableServerModeAndStart(Context context) {
+        boolean listenHostChanged = !ProxyExposure.isServerModeEnabled(context);
+        if (listenHostChanged) ProxyExposure.setServerModeEnabled(context, true);
+        applyProxyConfigChange(context, listenHostChanged);
     }
 
     public static void disableExternalPlayerServer(Context context) {
