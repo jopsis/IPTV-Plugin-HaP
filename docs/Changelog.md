@@ -2,6 +2,23 @@
 
 All notable changes to HaP will be documented here.
 
+## [1.3.1] - 2026-09-08
+
+### Fixed
+
+- Enabling the external player server no longer sends a proxy restart and a
+  service start at the same time. With the service already running, the
+  finished supervisor thread let `ACTION_START` spawn a new one alongside the
+  `proxy-restart` thread, so HTTPAceProxy was stopped and started twice at
+  once; when the readiness check lost the race, the supervisor tore down
+  AceServe and the proxy and left the service in the `Failed` phase.
+  `HapBridge` now picks a single service action per configuration change: a
+  stopped service starts (it reads the listen host on start), a running one
+  only restarts the proxy, and only when the listen host actually changed.
+- `cast.rewriteUrl` in `StreamVaultHapPluginService` used the same
+  server-mode-then-start pair and had the same double restart; it now goes
+  through the shared `HapBridge.enableServerModeAndStart()` helper.
+
 ## [1.3.0] - 2026-09-02
 
 ### Added

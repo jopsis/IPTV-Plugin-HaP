@@ -274,7 +274,7 @@ $HOME/Library/Android/sdk/platform-tools/adb install -r app/build/outputs/apk/de
 ```
 
 After installation, refresh StreamVault's Plugins screen. The HaP plugin should
-appear as `HaP`, version `1.3.0`, with `configuration.activity`.
+appear as `HaP`, version `1.3.1`, with `configuration.activity`.
 
 The configuration activity can also be opened directly:
 
