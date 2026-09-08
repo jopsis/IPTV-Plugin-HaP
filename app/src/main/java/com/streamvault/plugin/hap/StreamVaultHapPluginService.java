@@ -385,8 +385,7 @@ public class StreamVaultHapPluginService extends Service {
             return;
         }
         response.putBoolean(PluginContract.KEY_HANDLED, true);
-        HapBridge.setServerModeEnabled(this, true);
-        HapBridge.start(this);
+        HapBridge.enableServerModeAndStart(this);
         boolean ready = HapBridge.waitForProxyReady(90_000);
         if (!ready || !HapBridge.isCastableHapUrl(this, url)) {
             response.putBoolean(PluginContract.KEY_SUCCESS, false);
