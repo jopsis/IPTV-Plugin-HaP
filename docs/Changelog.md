@@ -2,6 +2,19 @@
 
 All notable changes to HaP will be documented here.
 
+## [1.3.2] - 2026-09-09
+
+### Fixed
+
+- The universal APK (both ABIs bundled) is ~125MB because of the kubo (IPFS)
+  binary; on storage-constrained 32-bit Android TV boxes this could make a
+  clean install fail with a generic "app not installed" error even though
+  the armeabi-v7a native library itself was present and valid. The release
+  now also publishes per-ABI APKs
+  (`IPTV-Plugin-HaP-<version>-armeabi-v7a.apk`, `-arm64-v8a.apk`), each about
+  20MB smaller by dropping the other ABI's unused native libraries, alongside
+  the existing universal APK.
+
 ## [1.3.1] - 2026-09-08
 
 ### Fixed
