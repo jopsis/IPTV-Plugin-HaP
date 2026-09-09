@@ -143,12 +143,13 @@ jobs:
         id: artifact
         run: |
           mkdir -p dist
-          VERSIONED_APK_FILE="dist/IPTV-Plugin-HaP-${{ steps.version.outputs.version_name }}.apk"
-          LATEST_APK_FILE="dist/IPTV-Plugin-HaP.apk"
-          cp app/build/outputs/apk/release/app-release.apk "$VERSIONED_APK_FILE"
-          cp app/build/outputs/apk/release/app-release.apk "$LATEST_APK_FILE"
-          echo "versioned_apk_file=$VERSIONED_APK_FILE" >> "$GITHUB_OUTPUT"
-          echo "latest_apk_file=$LATEST_APK_FILE" >> "$GITHUB_OUTPUT"
+          VERSION_NAME="${{ steps.version.outputs.version_name }}"
+          APK_DIR="app/build/outputs/apk/release"
+
+          cp "$APK_DIR/app-universal-release.apk" "dist/IPTV-Plugin-HaP-${VERSION_NAME}.apk"
+          cp "$APK_DIR/app-universal-release.apk" "dist/IPTV-Plugin-HaP.apk"
+          cp "$APK_DIR/app-arm64-v8a-release.apk" "dist/IPTV-Plugin-HaP-${VERSION_NAME}-arm64-v8a.apk"
+          cp "$APK_DIR/app-armeabi-v7a-release.apk" "dist/IPTV-Plugin-HaP-${VERSION_NAME}-armeabi-v7a.apk"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -161,14 +162,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
-          VERSIONED_APK_FILE: ${{ steps.artifact.outputs.versioned_apk_file }}
-          LATEST_APK_FILE: ${{ steps.artifact.outputs.latest_apk_file }}
         run: |
           NOTES="Signed APK for version ${{ steps.version.outputs.version_name }} (versionCode ${{ steps.version.outputs.version_code }})."
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release upload "$RELEASE_TAG" "$VERSIONED_APK_FILE" "$LATEST_APK_FILE" --clobber
+            gh release upload "$RELEASE_TAG" dist/*.apk --clobber
           else
-            gh release create "$RELEASE_TAG" "$VERSIONED_APK_FILE" "$LATEST_APK_FILE" \
+            gh release create "$RELEASE_TAG" dist/*.apk \
               --title "$RELEASE_TAG" \
               --notes "$NOTES"
           fi

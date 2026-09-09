@@ -34,8 +34,8 @@ android {
         applicationId = "com.streamvault.plugin.hap"
         minSdk = 27
         targetSdk = 36
-        versionCode = 12
-        versionName = "1.3.1"
+        versionCode = 13
+        versionName = "1.3.2"
 
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a")
@@ -63,6 +63,22 @@ android {
     packaging {
         jniLibs {
             useLegacyPackaging = true
+        }
+    }
+
+    // The bundled kubo (IPFS) binary makes a single arm64-v8a + armeabi-v7a
+    // "fat" APK ~125MB: on low-storage 32-bit Android TV boxes that is
+    // enough to make a clean install fail with a generic "app not
+    // installed" (out of space), even though both native libraries are
+    // present and valid. Ship smaller per-ABI APKs (each ABI's unused
+    // native libraries dropped) alongside a universal fallback for anyone
+    // unsure of their device's ABI.
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a")
+            isUniversalApk = true
         }
     }
 

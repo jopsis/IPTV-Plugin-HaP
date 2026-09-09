@@ -267,6 +267,21 @@ app/build/outputs/apk/debug/app-debug.apk
 
 ## Install
 
+Each [release](https://github.com/jopsis/IPTV-Plugin-HaP/releases/latest)
+publishes three APKs. The bundled IPFS (kubo) binary makes the universal APK
+(both ABIs) ~125MB; picking the APK matching your device's CPU drops the
+download and installed size by ~20MB by dropping the other ABI's unused
+native libraries. On storage-constrained Android TV boxes (common with
+older/cheap 32-bit devices) that difference can be what separates a clean
+install from a generic "app not installed" failure:
+
+- `IPTV-Plugin-HaP-<version>-armeabi-v7a.apk` — 32-bit ARM (most older/cheap
+  Android TV boxes).
+- `IPTV-Plugin-HaP-<version>-arm64-v8a.apk` — 64-bit ARM (most phones and
+  recent Android TV/Google TV devices).
+- `IPTV-Plugin-HaP-<version>.apk` / `IPTV-Plugin-HaP.apk` — universal, both
+  ABIs bundled. Use this only if you don't know your device's ABI.
+
 Install the debug APK on a connected device:
 
 ```sh
@@ -274,7 +289,7 @@ $HOME/Library/Android/sdk/platform-tools/adb install -r app/build/outputs/apk/de
 ```
 
 After installation, refresh StreamVault's Plugins screen. The HaP plugin should
-appear as `HaP`, version `1.3.1`, with `configuration.activity`.
+appear as `HaP`, version `1.3.2`, with `configuration.activity`.
 
 The configuration activity can also be opened directly:
 
