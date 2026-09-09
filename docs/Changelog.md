@@ -2,6 +2,19 @@
 
 All notable changes to HaP will be documented here.
 
+## [1.3.3] - 2026-09-09
+
+### Fixed
+
+- The 1.3.2 per-ABI APKs only dropped the other ABI's unused *native
+  libraries* (~20MB); the AceServe engine's per-ABI zip
+  (`assets/aceserve/<abi>/ace-<abi>.zip`, ~40-45MB) still shipped in full in
+  every APK, including the per-ABI ones, because `android.splits.abi` only
+  filters `lib/<abi>/`, not `assets/`. Per-ABI product flavors now also give
+  each ABI its own asset source set, dropping the other ABI's AceServe zip
+  too. The `armeabi-v7a`/`arm64-v8a` APKs are now ~65-70MB (down from
+  ~105-110MB in 1.3.2), instead of the universal APK's ~125MB.
+
 ## [1.3.2] - 2026-09-09
 
 ### Fixed

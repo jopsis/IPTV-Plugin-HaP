@@ -144,12 +144,11 @@ jobs:
         run: |
           mkdir -p dist
           VERSION_NAME="${{ steps.version.outputs.version_name }}"
-          APK_DIR="app/build/outputs/apk/release"
 
-          cp "$APK_DIR/app-universal-release.apk" "dist/IPTV-Plugin-HaP-${VERSION_NAME}.apk"
-          cp "$APK_DIR/app-universal-release.apk" "dist/IPTV-Plugin-HaP.apk"
-          cp "$APK_DIR/app-arm64-v8a-release.apk" "dist/IPTV-Plugin-HaP-${VERSION_NAME}-arm64-v8a.apk"
-          cp "$APK_DIR/app-armeabi-v7a-release.apk" "dist/IPTV-Plugin-HaP-${VERSION_NAME}-armeabi-v7a.apk"
+          cp "app/build/outputs/apk/universal/release/app-universal-release.apk" "dist/IPTV-Plugin-HaP-${VERSION_NAME}.apk"
+          cp "app/build/outputs/apk/universal/release/app-universal-release.apk" "dist/IPTV-Plugin-HaP.apk"
+          cp "app/build/outputs/apk/arm64/release/app-arm64-release.apk" "dist/IPTV-Plugin-HaP-${VERSION_NAME}-arm64-v8a.apk"
+          cp "app/build/outputs/apk/armv7/release/app-armv7-release.apk" "dist/IPTV-Plugin-HaP-${VERSION_NAME}-armeabi-v7a.apk"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
