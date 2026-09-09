@@ -256,24 +256,27 @@ plugin:
 ```sh
 JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" \
 ANDROID_HOME="$HOME/Library/Android/sdk" \
-./gradlew :app:assembleDebug
+./gradlew :app:assembleUniversalDebug
 ```
 
-The debug APK is written to:
+The app is split into `arm64`/`armv7`/`universal` product flavors (see
+[Install](#install)); for local development, the `universal` flavor bundles
+both ABIs into one APK. The debug APK is written to:
 
 ```text
-app/build/outputs/apk/debug/app-debug.apk
+app/build/outputs/apk/universal/debug/app-universal-debug.apk
 ```
 
 ## Install
 
 Each [release](https://github.com/jopsis/IPTV-Plugin-HaP/releases/latest)
-publishes three APKs. The bundled IPFS (kubo) binary makes the universal APK
-(both ABIs) ~125MB; picking the APK matching your device's CPU drops the
-download and installed size by ~20MB by dropping the other ABI's unused
-native libraries. On storage-constrained Android TV boxes (common with
-older/cheap 32-bit devices) that difference can be what separates a clean
-install from a generic "app not installed" failure:
+publishes three APKs. Both the bundled IPFS (kubo) binary and the AceServe
+engine ship a separate ~40-60MB blob per ABI, so the universal APK (both
+ABIs) is ~125MB; picking the APK matching your device's CPU drops that to
+~65-70MB by dropping the other ABI's unused native libraries and assets. On
+storage-constrained Android TV boxes (common with older/cheap 32-bit
+devices) that difference can be what separates a clean install from a
+generic "app not installed" failure:
 
 - `IPTV-Plugin-HaP-<version>-armeabi-v7a.apk` — 32-bit ARM (most older/cheap
   Android TV boxes).
@@ -285,11 +288,11 @@ install from a generic "app not installed" failure:
 Install the debug APK on a connected device:
 
 ```sh
-$HOME/Library/Android/sdk/platform-tools/adb install -r app/build/outputs/apk/debug/app-debug.apk
+$HOME/Library/Android/sdk/platform-tools/adb install -r app/build/outputs/apk/universal/debug/app-universal-debug.apk
 ```
 
 After installation, refresh StreamVault's Plugins screen. The HaP plugin should
-appear as `HaP`, version `1.3.2`, with `configuration.activity`.
+appear as `HaP`, version `1.3.3`, with `configuration.activity`.
 
 The configuration activity can also be opened directly:
 
